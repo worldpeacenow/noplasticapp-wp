@@ -53,3 +53,9 @@ config.codekit
 *.tar
 # we don't ignore gz as some modules come with gz files
 #*.gz
+
+###  Word fence files
+
+htdocs/wp-content/wflogs/config*.php
+.user.ini
+wordfence-waf.php
