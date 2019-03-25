@@ -107,6 +107,7 @@ class ET_Builder_Block_Editor_Integration {
 	 * @return void
 	 */
 	public function enqueue_block_editor_assets() {
+		et_fb_enqueue_open_sans();
 		et_fb_enqueue_bundle( 'et-builder-gutenberg', 'gutenberg.js', array( 'jquery' ) );
 		et_fb_enqueue_bundle( 'et-builder-gutenberg', 'gutenberg.css', array() );
 		$res = et_pb_is_pagebuilder_used();
@@ -316,7 +317,7 @@ class ET_Builder_Block_Editor_Integration {
 	/**
 	 * Ensures that Divi enabled CPTs support 'custom-fields'.
 	 *
-	 * @since ??
+	 * @since 3.19.12
 	 *
 	 */
 	public function ensure_post_type_supports() {

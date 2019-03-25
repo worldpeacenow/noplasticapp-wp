@@ -43,15 +43,22 @@ function et_builder_should_load_framework() {
 
 	$is_admin = is_admin();
 	$required_admin_pages = array( 'edit.php', 'post.php', 'post-new.php', 'admin.php', 'customize.php', 'edit-tags.php', 'admin-ajax.php', 'export.php', 'options-permalink.php', 'themes.php', 'revision.php' ); // list of admin pages where we need to load builder files
-	$specific_filter_pages = array( 'edit.php', 'admin.php', 'edit-tags.php' ); // list of admin pages where we need more specific filtering
+	$specific_filter_pages = array( 'edit.php', 'post.php', 'post-new.php', 'admin.php', 'edit-tags.php' ); // list of admin pages where we need more specific filtering
+	$post_id = (int) et_()->array_get( $_GET, 'post', 0 );
+	
+	$bfb_settings = get_option( 'et_bfb_settings' );
+	$is_bfb = et_pb_is_allowed( 'use_visual_builder' ) && isset( $bfb_settings['enable_bfb'] ) && 'on' === $bfb_settings['enable_bfb'];
+	$is_bfb_used = 'on' === get_post_meta( $post_id, '_et_pb_use_builder', true ) && $is_bfb;
 
-	$is_edit_library_page = 'edit.php' === $pagenow && isset( $_GET['post_type'] ) && 'et_pb_layout' === $_GET['post_type'];
+	$is_edit_library_page = in_array( $pagenow, array( 'edit.php', 'post.php', 'post-new.php' ) ) && ( ( isset( $_GET['post_type'] ) && 'et_pb_layout' === $_GET['post_type'] ) || ( $post_id && 'et_pb_layout' === get_post_type( $post_id ) ) );
+	$is_extra_builder = $post_id && 'layout' === get_post_type( $post_id );
+	$is_edit_page_not_bfb = in_array( $pagenow, array( 'post-new.php', 'post.php' ) ) && !$is_bfb_used;
 	$is_role_editor_page = 'admin.php' === $pagenow && isset( $_GET['page'] ) && apply_filters( 'et_divi_role_editor_page', 'et_divi_role_editor' ) === $_GET['page'];
 	$is_import_page = 'admin.php' === $pagenow && isset( $_GET['import'] ) && 'wordpress' === $_GET['import']; // Page Builder files should be loaded on import page as well to register the et_pb_layout post type properly
 	$is_wpml_page = 'admin.php' === $pagenow && isset( $_GET['page'] ) && 'sitepress-multilingual-cms/menu/languages.php' === $_GET['page']; // Page Builder files should be loaded on WPML clone page as well to register the custom taxonomies properly
 	$is_edit_layout_category_page = 'edit-tags.php' === $pagenow && isset( $_GET['taxonomy'] ) && ( 'layout_category' === $_GET['taxonomy'] || 'layout_pack' === $_GET['taxonomy'] );
 
-	if ( ! $is_admin || ( $is_admin && in_array( $pagenow, $required_admin_pages ) && ( ! in_array( $pagenow, $specific_filter_pages ) || $is_edit_library_page || $is_role_editor_page || $is_edit_layout_category_page || $is_import_page || $is_wpml_page ) ) ) {
+	if ( ! $is_admin || ( $is_admin && in_array( $pagenow, $required_admin_pages ) && ( ! in_array( $pagenow, $specific_filter_pages ) || $is_edit_library_page || $is_role_editor_page || $is_edit_layout_category_page || $is_import_page || $is_wpml_page || $is_edit_page_not_bfb || $is_extra_builder ) ) ) {
 		$should_load = true;
 	} else {
 		$should_load = false;
@@ -630,7 +637,7 @@ function et_pb_get_current_user_role() {
 
 /**
  * Generate the list of all roles ( with editing permissions ) registered in current WP
- * @return string
+ * @return array
  */
 function et_pb_get_all_roles_list() {
 	// get all roles registered in current WP
@@ -643,8 +650,14 @@ function et_pb_get_all_roles_list() {
 
 	if ( ! empty( $all_roles ) ) {
 		foreach( $all_roles as $role => $role_data ) {
-			// add roles with edit_posts capability into $builder_roles_array
-			if ( ! empty( $role_data['capabilities']['edit_posts'] ) && 1 === (int) $role_data['capabilities']['edit_posts'] ) {
+			// add roles with edit_posts capability into $builder_roles_array (but not Support)
+			if (
+				! empty( $role_data['capabilities']['edit_posts'] )
+				&&
+				1 === (int) $role_data['capabilities']['edit_posts']
+				&&
+				! in_array( $role_data['name'], array( "ET Support", "ET Support - Elevated" ) )
+			) {
 				$builder_roles_array[ $role ] = $role_data['name'];
 			}
 		}
@@ -1798,6 +1811,12 @@ function et_pb_autosave_builder_settings( $post_id, $builder_settings ) {
 	$current_user_id = get_current_user_id();
 	// Builder settings autosave
 	if ( !empty( $builder_settings ) ) {
+
+		// Data is coming from `wp_ajax_heartbeat` which ran `wp_unslash` on it,
+		// `update_post_meta` will do the same, resulting in legit slashes being removed
+		// from page settings.
+		// The solution is to add those slashes back before updating metas.
+		$builder_settings = wp_slash( $builder_settings );
 
 		// Pseudo activate AB Testing for VB draft/builder-sync interface
 		if ( isset( $builder_settings['et_pb_use_ab_testing'] ) ) {
@@ -2957,6 +2976,29 @@ function et_builder_get_no_builder_notification_modal() {
 }
 endif;
 
+if ( ! function_exists( 'et_builder_get_no_browser_notification_modal' ) ) :
+function et_builder_get_no_browser_notification_modal() {
+	$output = sprintf(
+		'<div class="et-core-modal-overlay et-builder-timeout et-core-active">
+			<div class="et-core-modal">
+				<div class="et-core-modal-header">
+					<h3 class="et-core-modal-title">%1$s</h3>
+					<a href="#" class="et-core-modal-close" data-et-core-modal="close"></a>
+				</div>
+
+				<div class="et-core-modal-content">
+					<p><strong>%2$s</strong></p>
+				</div>
+			</div>
+		</div>',
+		esc_html__( 'Your Browser Is Not Supported', 'et_builder' ),
+		esc_html__( 'The Divi Builder does not support the browser you are using. Your browser is no longer being developed, so it is time to switch to something new! The Divi Builder works best in the most recent versions of Chrome, Firefox, Safari, Opera and Edge.', 'et_builder' )
+	);
+
+	return $output;
+}
+endif;
+
 if ( ! function_exists( 'et_builder_get_exit_notification_modal' ) ) :
 function et_builder_get_exit_notification_modal() {
 	$output = sprintf(
@@ -3715,6 +3757,12 @@ function et_fb_is_enabled( $post_id = false ) {
 		$post_id = isset( $post->ID ) ? $post->ID : false;
 	}
 
+	$check = apply_filters( 'et_fb_is_enabled', null, $post_id );
+
+	if ( null !== $check ) {
+		return $check;
+	}
+
 	if ( is_admin() ) {
 		return false;
 	}
@@ -3744,6 +3792,29 @@ function et_fb_is_enabled( $post_id = false ) {
 	}
 
 	return true;
+}
+endif;
+
+if ( ! function_exists( 'et_fb_is_builder_ajax' ) ) :
+/**
+ * Returns whether current request is a builder AJAX call.
+ *
+ * @return bool
+ */
+function et_fb_is_builder_ajax() {
+	// phpcs:disable WordPress.Security.NonceVerification.NoNonceVerification
+	if ( ! wp_doing_ajax() || empty( $_REQUEST['action'] ) ) {
+		return false;
+	}
+	// phpcs:enable
+
+	return in_array(
+		$_REQUEST['action'],
+		array(
+			'et_fb_update_builder_assets',
+			'et_fb_retrieve_builder_data',
+		)
+	);
 }
 endif;
 
@@ -5293,8 +5364,8 @@ function _et_pb_code_module_prep_content_regex_cb( $matches ) {
 }
 
 function et_pb_prep_code_module_for_wpautop( $content ) {
-	$content = preg_replace_callback('/\[et_pb_code(?:\s+[^\]]*)?\](.*?)\[\/et_pb_code\]/mis', '_et_pb_code_module_prep_content_regex_cb', $content );
-	$content = preg_replace_callback('/\[et_pb_fullwidth_code(?:\s+[^\]]*)?\](.*?)\[\/et_pb_fullwidth_code\]/mis', '_et_pb_code_module_prep_content_regex_cb', $content );
+	$content = preg_replace_callback('/\[et_pb_code(?:(?![^\]]*\/\])[^\]]*)\](.*?)\[\/et_pb_code\]/mis', '_et_pb_code_module_prep_content_regex_cb', $content );
+	$content = preg_replace_callback('/\[et_pb_fullwidth_code(?:(?![^\]]*\/\])[^\]]*)\](.*?)\[\/et_pb_fullwidth_code\]/mis', '_et_pb_code_module_prep_content_regex_cb', $content );
 
 	return $content;
 }
@@ -5334,5 +5405,18 @@ function et_fb_delete_builder_assets() {
 	foreach ( array_merge( $old_files, $new_files ) as $file ) {
 		@unlink( $file );
 	}
+}
+endif;
+
+
+if ( ! function_exists( 'et_fb_enqueue_open_sans' ) ):
+function et_fb_enqueue_open_sans() {
+	$protocol   = is_ssl() ? 'https' : 'http';
+	$query_args = array(
+		'family' => 'Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800',
+		'subset' => 'latin,latin-ext',
+	);
+
+	wp_enqueue_style( 'et-fb-fonts', esc_url_raw( add_query_arg( $query_args, "{$protocol}://fonts.googleapis.com/css" ) ), array(), null );
 }
 endif;
