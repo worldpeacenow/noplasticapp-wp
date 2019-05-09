@@ -1,3 +1,5 @@
+/* eslint-disable yoda */
+
 import React from 'react';
 import placeholder from 'gutenberg/blocks/placeholder';
 import { isBuilderUsed, isScriptDebug, canToggle, isEnabled, getVBUrl } from 'gutenberg/utils/helpers';
@@ -213,6 +215,16 @@ class Controller {
     document.dispatchEvent(event);
   }
 
+  /**
+   * Prevent typing ENTER in the title block from creating blocks when placeholder is active
+   */
+  preventOnEnterAddBlock = (event) => {
+    if (hasPlaceholder() && 13 === event.keyCode) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+  }
+
   onEditorContentChange = () => {
     const post = getCurrentPost();
     if (isEmpty(post) || !this.unsubscribe) {
@@ -224,6 +236,9 @@ class Controller {
     }
 
     this.fireEditorReadyEvent();
+
+    // Add a keydown listener to the title block when it comes up.
+    jQuery('body').on('keydown', '.editor-post-title__input', this.preventOnEnterAddBlock);
 
     // We only need to do this step once
     this.unsubscribe();
