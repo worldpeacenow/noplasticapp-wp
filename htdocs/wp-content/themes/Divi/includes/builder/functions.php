@@ -4,7 +4,7 @@ require_once 'module/helpers/Overflow.php';
 
 if ( ! defined( 'ET_BUILDER_PRODUCT_VERSION' ) ) {
 	// Note, this will be updated automatically during grunt release task.
-	define( 'ET_BUILDER_PRODUCT_VERSION', '3.22.7' );
+	define( 'ET_BUILDER_PRODUCT_VERSION', '3.24' );
 }
 
 if ( ! defined( 'ET_BUILDER_VERSION' ) ) {
@@ -22,6 +22,10 @@ if ( ! defined( 'ET_BUILDER_DIR_RESOLVED_PATH' ) ) {
 // When set to true, the builder will use the new loading method
 if ( ! defined( 'ET_BUILDER_CACHE_ASSETS' ) ) {
 	define( 'ET_BUILDER_CACHE_ASSETS', ! isset( $_REQUEST['nocache'] ) );
+}
+
+if ( ! defined( 'ET_BUILDER_CACHE_MODULES' ) ) {
+	define( 'ET_BUILDER_CACHE_MODULES', apply_filters( 'et_builder_cache_modules', true ) );
 }
 
 if ( ! defined( 'ET_BUILDER_JSON_ENCODE_OPTIONS' ) ) {
@@ -1036,6 +1040,7 @@ function et_fb_current_page_params() {
 		'paged'                    => is_front_page() ? $et_paged : $paged,
 		'post_modified'            => isset( $post->ID ) ? esc_attr( $post->post_modified ) : '',
 		'lang'                     => get_locale(),
+		'langCode'                 => get_locale(),
 	);
 
 	return apply_filters( 'et_fb_current_page_params', $current_page );
@@ -1957,6 +1962,8 @@ endif;
 
 if ( ! function_exists( 'et_builder_set_element_font' ) ) :
 function et_builder_set_element_font( $font, $use_important = false, $default = false ) {
+	static $cache = array();
+
 	$style = '';
 
 	if ( '' === $font ) {
@@ -1995,9 +2002,19 @@ function et_builder_set_element_font( $font, $use_important = false, $default = 
 		$font_line_style_default      = isset( $font_values_default[8] ) ? $font_values_default[8] : '';
 
 		if ( '' !== $font_name && $font_name_default !== $font_name ) {
-			et_builder_enqueue_font( $font_name );
+			if ( empty( $cache[ $font_name ] ) ) {
+				et_builder_enqueue_font( $font_name );
+				$font_family         = et_builder_get_font_family( $font_name );
+				$cache[ $font_name ] = $font_family;
+			} else {
+				$font_family = $cache[ $font_name ];
+			}
 
-			$style .= et_builder_get_font_family( $font_name, $use_important ) . ' ';
+			if ( $use_important ) {
+				$font_family = rtrim( $font_family, ';' ) . ' !important;';
+			}
+
+			$style .= "$font_family ";
 		}
 
 		$style .= et_builder_set_element_font_style( 'font-weight', ( '' !== $font_weight_default ), ( '' !== $font_weight ), 'normal', $font_weight, $use_important );
@@ -2046,6 +2063,78 @@ function et_builder_set_element_font_style( $property, $default, $value, $proper
 
 	return $style;
 }
+endif;
+
+if ( ! function_exists( 'et_builder_set_reset_font_style' ) ) :
+	/**
+	 * Set reset CSS style declaration to normalize the existing font styles value from another font
+	 * options group.
+	 *
+	 * @since 3.23
+	 *
+	 * @param  string  $current_value  Current font option value.
+	 * @param  string  $compared_value Compared or parent font option value.
+	 * @param  boolean $use_important  Imporant status.
+	 * @return string                  Generated reset font styles.
+	 */
+	function et_builder_set_reset_font_style( $current_value, $compared_value, $use_important = false ) {
+		// Being save, ensure current and compared values are valid string.
+		if ( ! is_string( $current_value ) || ! is_string( $compared_value ) ) {
+			return '';
+		}
+
+		$current_pieces  = explode( '|', $current_value );
+		$compared_pieces = explode( '|', $compared_value );
+		 if ( empty( $current_pieces ) || empty( $compared_pieces ) ) {
+			return '';
+		}
+
+		// Current value font style status.
+		$is_current_italic       = isset( $current_pieces[2] ) && $current_pieces[2] === 'on';
+		$is_current_uppercase    = isset( $current_pieces[3] ) && $current_pieces[3] === 'on';
+		$is_current_underline    = isset( $current_pieces[4] ) && $current_pieces[4] === 'on';
+		$is_current_small_caps   = isset( $current_pieces[5] ) && $current_pieces[5] === 'on';
+		$is_current_line_through = isset( $current_pieces[6] ) && $current_pieces[6] === 'on';
+
+		// Compated value font style status.
+		$is_compared_italic       = isset( $compared_pieces[2] ) && $compared_pieces[2] === 'on';
+		$is_compared_uppercase    = isset( $compared_pieces[3] ) && $compared_pieces[3] === 'on';
+		$is_compared_underline    = isset( $compared_pieces[4] ) && $compared_pieces[4] === 'on';
+		$is_compared_small_caps   = isset( $compared_pieces[5] ) && $compared_pieces[5] === 'on';
+		$is_compared_line_through = isset( $compared_pieces[6] ) && $compared_pieces[6] === 'on';
+
+		$style     = '';
+		$important = $use_important ? ' !important' : '';
+
+		// Reset italic.
+		if ( ! $is_current_italic && $is_compared_italic ) {
+			$style .= "font-style: normal{$important};";
+		}
+
+		// Reset uppercase.
+		if ( ! $is_current_uppercase && $is_compared_uppercase ) {
+			$style .= "text-transform: none{$important};";
+		}
+
+		// Reset small caps.
+		if ( ! $is_current_small_caps && $is_compared_small_caps ) {
+			$style .= "font-variant: none{$important};";
+		}
+
+		// Reset underline.
+		if ( ! $is_current_underline && $is_compared_underline ) {
+			$underline_value = $is_current_line_through || $is_compared_line_through ? 'line-through' : 'none';
+			$style .= "text-decoration: {$underline_value}{$important};";
+		}
+
+		// Reset line through.
+		if ( ! $is_current_line_through && $is_compared_line_through ) {
+			$line_through_value = $is_current_underline || $is_compared_underline ? 'underline' : 'none';
+			$style .= "text-decoration: {$line_through_value}{$important};";
+		}
+
+		return $style;
+	}
 endif;
 
 if ( ! function_exists( 'et_builder_get_element_style_css' ) ) :
@@ -8111,24 +8200,35 @@ function et_pb_generate_mobile_settings_tabs() {
 	return $mobile_settings_tabs;
 }
 
-// Generates the css code for responsive options.
-// Uses array of values for each device as input parameter and css_selector with property to apply the css
+/**
+ * Generates the css code for responsive options.
+ *
+ * Uses array of values for each device as input parameter and css_selector with property to
+ * apply the css
+ *
+ * @deprecated See ET_Builder_Module_Helper_ResponsiveOptions::instance()->generate_responsive_css().
+ *
+ * @since 3.23 Deprecated.
+ *
+ * @param  array  $values_array   All device values.
+ * @param  mixed  $css_selector   CSS selector.
+ * @param  string $css_property   CSS property.
+ * @param  string $function_name  Module slug.
+ * @param  string $additional_css Additional CSS.
+ */
 function et_pb_generate_responsive_css( $values_array, $css_selector, $css_property, $function_name, $additional_css = '' ) {
 	if ( ! empty( $values_array ) ) {
 		foreach( $values_array as $device => $current_value ) {
 			if ( '' === $current_value ) {
 				continue;
 			}
-
 			$declaration = '';
-
 			// value can be provided as a string or array in following format - array( 'property_1' => 'value_1', 'property_2' => 'property_2', ... , 'property_n' => 'value_n' )
 			if ( is_array( $current_value ) && ! empty( $current_value ) ) {
 				foreach( $current_value as $this_property => $this_value ) {
 					if ( '' === $this_value ) {
 						continue;
 					}
-
 					$declaration .= sprintf(
 						'%1$s: %2$s%3$s',
 						$this_property,
@@ -8144,23 +8244,19 @@ function et_pb_generate_responsive_css( $values_array, $css_selector, $css_prope
 					'' !== $additional_css ? $additional_css : ';'
 				);
 			}
-
 			if ( '' === $declaration ) {
 				continue;
 			}
-
 			$style = array(
 				'selector'    => $css_selector,
 				'declaration' => $declaration,
 			);
-
 			if ( 'desktop_only' === $device ) {
 				$style['media_query'] = ET_Builder_Element::get_media_query( 'min_width_981' );
 			} elseif ( 'desktop' !== $device ) {
 				$current_media_query = 'tablet' === $device ? 'max_width_980' : 'max_width_767';
 				$style['media_query'] = ET_Builder_Element::get_media_query( $current_media_query );
 			}
-
 			ET_Builder_Element::set_style( $function_name, $style );
 		}
 	}
@@ -8582,14 +8678,21 @@ function et_fb_update_builder_assets() {
 
 	$post_type = ! empty( $_POST['et_post_type'] ) ? sanitize_text_field( $_POST['et_post_type'] ) : 'post';
 
-	$data = array(
-		// Update helpers cached js file
-		'helpers' => et_fb_get_dynamic_asset( 'helpers', $post_type, true ),
-		// Update definitions cached js file
-		'definitions' => et_fb_get_dynamic_asset( 'definitions', $post_type, true ),
-	);
+	// Update helpers cached js file
+	$helpers = et_fb_get_dynamic_asset( 'helpers', $post_type, true );
+	// Update definitions cached js file
+	$definitions = et_fb_get_dynamic_asset( 'definitions', $post_type, true );
 
-	die( json_encode( $data ) );
+	// When either definitions or helpers needs an update, also clear modules cache.
+	if ( $definitions['updated'] || $helpers['updated'] ) {
+		$modules_cache = ET_Builder_Element::get_cache_filename( $post_type );
+
+		if ( file_exists( $modules_cache ) ) {
+			@unlink( $modules_cache );
+		}
+	}
+
+	die( json_encode( array( 'helpers' => $helpers, 'definitions' => $definitions ) ) );
 }
 add_action( 'wp_ajax_et_fb_update_builder_assets', 'et_fb_update_builder_assets' );
 

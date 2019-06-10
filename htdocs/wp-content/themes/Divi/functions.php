@@ -9101,9 +9101,9 @@ if ( ! function_exists( 'et_divi_get_top_nav_items' ) ) {
 	function et_divi_get_top_nav_items() {
 		$items = new stdClass;
 
-		$items->phone_number = et_get_option( 'phone_number' );
+		$items->phone_number = trim( et_get_option( 'phone_number' ) );
 
-		$items->email = et_get_option( 'header_email' );
+		$items->email = trim( et_get_option( 'header_email' ) );
 
 		$items->contact_info_defined = $items->phone_number || $items->email;
 
@@ -9811,3 +9811,23 @@ if ( ! function_exists( 'et_divi_footer_active_sidebars' ) ):
 		return $et_active_sidebar;
 	}
 endif;
+
+/**
+ * Check if the theme has boxed layout enabled
+ *
+ * @return bool
+ */
+function et_divi_is_boxed_layout() {
+    return true === et_get_option( 'boxed_layout', false );
+}
+
+/**
+ * Get current theme content container width
+ *
+ * @return int
+ */
+function et_divi_get_content_width() {
+	$value = absint( et_get_option( 'content_width', 1080 ) );
+
+	return ( 1080 === $value && et_divi_is_boxed_layout() ) ? 1200 : $value;
+}
