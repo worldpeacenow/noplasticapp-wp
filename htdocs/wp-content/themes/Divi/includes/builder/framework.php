@@ -10,6 +10,11 @@ require_once ET_BUILDER_DIR . 'api/DiviExtensions.php';
 require_once ET_BUILDER_DIR . 'feature/custom-defaults/Settings.php';
 require_once ET_BUILDER_DIR . 'feature/custom-defaults/History.php';
 
+// Conditional Includes.
+if ( et_is_woocommerce_plugin_active() ) {
+	require_once ET_BUILDER_DIR . 'feature/woocommerce-modules.php';
+}
+
 if ( wp_doing_ajax() && ! is_customize_preview() ) {
 	define( 'WPE_HEARTBEAT_INTERVAL', et_builder_heartbeat_interval() );
 
@@ -54,6 +59,7 @@ if ( wp_doing_ajax() && ! is_customize_preview() ) {
 			'et_core_portability_import',
 			'et_core_version_rollback',
 			'update-theme',
+			'et_safe_mode_update',
 			'et_core_portability_export',
 			'et_core_portability_import',
 			'et_builder_migrate_module_customizer_phase_two',

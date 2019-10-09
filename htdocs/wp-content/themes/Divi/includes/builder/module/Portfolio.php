@@ -438,10 +438,11 @@ class ET_Builder_Module_Portfolio extends ET_Builder_Module_Type_PostBased {
 				$et_fb_processing_shortcode_object = $global_processing_original_value;
 
 				// Append value to query post
-				$query->posts[ $post_index ]->post_permalink 	= get_permalink();
-				$query->posts[ $post_index ]->post_thumbnail 	= print_thumbnail( $thumbnail['thumb'], $thumbnail['use_timthumb'], $titletext, $width, $height, '', false, true );
-				$query->posts[ $post_index ]->post_categories 	= $categories;
-				$query->posts[ $post_index ]->post_class_name 	= get_post_class( '', get_the_ID() );
+				$query->posts[ $post_index ]->post_permalink  = get_permalink();
+				$query->posts[ $post_index ]->featured_image  = isset( $thumbnail['fullpath'] ) ? $thumbnail['fullpath'] : null;
+				$query->posts[ $post_index ]->post_thumbnail  = print_thumbnail( $thumbnail['thumb'], $thumbnail['use_timthumb'], $titletext, $width, $height, '', false, true );
+				$query->posts[ $post_index ]->post_categories = $categories;
+				$query->posts[ $post_index ]->post_class_name = get_post_class( '', get_the_ID() );
 
 				$post_index++;
 			}
@@ -564,11 +565,18 @@ class ET_Builder_Module_Portfolio extends ET_Builder_Module_Type_PostBased {
 						<?php } else { ?>
 							<span class="et_portfolio_image">
 								<?php
-								$this->render_image( $post->post_thumbnail, array(
-									'alt' => get_the_title(),
-									'width' => '400',
+								$image_attrs = array(
+									'alt'    => get_the_title(),
+									'width'  => '400',
 									'height' => '284',
-								) );
+								);
+
+								if ( ! empty( $post->featured_image ) ) {
+									$image_attrs['srcset'] = $post->featured_image . ' 479w, ' . $post->post_thumbnail . ' 480w';
+									$image_attrs['sizes']  = '(max-width:479px) 479w, 100vw';
+								}
+
+								$this->render_image( $post->post_thumbnail, $image_attrs );
 								?>
 								<?php echo et_core_esc_previously( $overlay ); ?>
 							</span>
@@ -623,7 +631,7 @@ class ET_Builder_Module_Portfolio extends ET_Builder_Module_Type_PostBased {
 
 			if ( $multi_view->has_value( 'show_pagination', 'on' ) && ! is_search() ) {
 				if ( function_exists( 'wp_pagenavi' ) ) {
-					$pagination = $multi_view->render_attrs( array(
+					$pagination = $multi_view->render_element( array(
 						'tag'     => 'div',
 						'content' => wp_pagenavi( array( 'query' => $portfolio, 'echo' => false ) ),
 						'visibility' => array(

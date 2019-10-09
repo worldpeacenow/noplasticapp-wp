@@ -1,5 +1,7 @@
 <?php
 
+require_once 'helpers/Overlay.php';
+
 class ET_Builder_Module_Shop extends ET_Builder_Module_Type_PostBased {
 	function init() {
 		$this->name       = esc_html__( 'Shop', 'et_builder' );
@@ -714,26 +716,11 @@ class ET_Builder_Module_Shop extends ET_Builder_Module_Type_PostBased {
 			) );
 		}
 
-		$data_icon = '' !== $hover_icon
-			? sprintf(
-				' data-icon="%1$s"',
-				esc_attr( et_pb_process_font_icon( $hover_icon ) )
-			)
-			: '';
-
-		$data_icon_tablet = '' !== $hover_icon_tablet
-			? sprintf(
-				' data-icon-tablet="%1$s"',
-				esc_attr( et_pb_process_font_icon( $hover_icon_tablet ) )
-			)
-			: '';
-
-		$data_icon_phone = '' !== $hover_icon_phone
-			? sprintf(
-				' data-icon-phone="%1$s"',
-				esc_attr( et_pb_process_font_icon( $hover_icon_phone ) )
-			)
-			: '';
+		$overlay_attributes = ET_Builder_Module_Helper_Overlay::render_attributes( array(
+			'icon'        => $hover_icon,
+			'icon_tablet' => $hover_icon_tablet,
+			'icon_phone'  => $hover_icon_phone,
+		) );
 
 		// Module classnames
 		$this->add_classname( array(
@@ -745,19 +732,17 @@ class ET_Builder_Module_Shop extends ET_Builder_Module_Type_PostBased {
 		}
 
 		$output = sprintf(
-			'<div%2$s class="%3$s"%4$s%7$s%8$s>
-				%6$s
+			'<div%2$s class="%3$s" %6$s>
 				%5$s
+				%4$s
 				%1$s
 			</div>',
 			$this->get_shop( array(), array(), array( 'id' => $this->get_the_ID() ) ),
 			$this->module_id(),
 			$this->module_classname( $render_slug ),
-			$data_icon,
 			$video_background,
 			$parallax_image_background,
-			$data_icon_tablet,
-			$data_icon_phone
+			et_core_esc_previously( $overlay_attributes )
 		);
 
 		return $output;

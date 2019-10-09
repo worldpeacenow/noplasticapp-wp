@@ -4,7 +4,7 @@ require_once 'module/helpers/Overflow.php';
 
 if ( ! defined( 'ET_BUILDER_PRODUCT_VERSION' ) ) {
 	// Note, this will be updated automatically during grunt release task.
-	define( 'ET_BUILDER_PRODUCT_VERSION', '3.27.4' );
+	define( 'ET_BUILDER_PRODUCT_VERSION', '3.29.3' );
 }
 
 if ( ! defined( 'ET_BUILDER_VERSION' ) ) {
@@ -749,6 +749,7 @@ function et_fb_conditional_tag_params() {
 	$conditional_tags = array(
 		'is_limited_mode'             => et_builder_is_limited_mode(),
 		'is_bfb'                      => et_builder_bfb_enabled(),
+		'is_bfb_activated'            => et_builder_bfb_activated(),
 		'is_front_page'               => is_front_page(),
 		'is_home_page'                => is_home() || is_front_page(),
 		'is_search'                   => is_search(),
@@ -1041,6 +1042,23 @@ function et_fb_current_page_params() {
 		'post_modified'            => isset( $post->ID ) ? esc_attr( $post->post_modified ) : '',
 		'lang'                     => get_locale(),
 		'langCode'                 => get_locale(),
+		'woocommerceComponents'    => ! et_is_woocommerce_plugin_active() || 'product' !== get_post_type() ? array() : array(
+			'et_pb_wc_add_to_cart'      => ET_Builder_Module_Woocommerce_Add_To_Cart::get_add_to_cart(),
+			'et_pb_wc_additional_info'  => ET_Builder_Module_Woocommerce_Additional_Info::get_additional_info(),
+			'et_pb_wc_breadcrumb'       => ET_Builder_Module_Woocommerce_Breadcrumb::get_breadcrumb(),
+			'et_pb_wc_cart_notice'      => ET_Builder_Module_Woocommerce_Cart_Notice::get_cart_notice(),
+			'et_pb_wc_description'      => ET_Builder_Module_Woocommerce_Description::get_description(),
+			'et_pb_wc_images'           => ET_Builder_Module_Woocommerce_Images::get_images(),
+			'et_pb_wc_meta'             => ET_Builder_Module_Woocommerce_Meta::get_meta(),
+			'et_pb_wc_price'            => ET_Builder_Module_Woocommerce_Price::get_price(),
+			'et_pb_wc_rating'           => ET_Builder_Module_Woocommerce_Rating::get_rating(),
+			'et_pb_wc_reviews'          => ET_Builder_Module_Woocommerce_Reviews::get_reviews_html(),
+			'et_pb_wc_stock'            => ET_Builder_Module_Woocommerce_Stock::get_stock(),
+			'et_pb_wc_tabs'             => ET_Builder_Module_Woocommerce_Tabs::get_tabs(),
+			'et_pb_wc_title'            => ET_Builder_Module_Woocommerce_Title::get_title(),
+			'et_pb_wc_related_products' => ET_Builder_Module_Woocommerce_Related_Products::get_related_products(),
+			'et_pb_wc_upsells'          => ET_Builder_Module_Woocommerce_Upsells::get_upsells(),
+		),
 	);
 
 	return apply_filters( 'et_fb_current_page_params', $current_page );
@@ -1546,6 +1564,15 @@ function et_fb_ajax_save() {
 			}
 		}
 
+		/**
+		 * Hook triggered when the Post is updated.
+		 *
+		 * @param int $post_id Post ID.
+		 *
+		 * @since 3.29
+		 */
+		do_action( 'et_update_post', $post_id );
+
 		wp_send_json_success( array(
 			'status'            => get_post_status( $update ),
 			'save_verification' => apply_filters( 'et_fb_ajax_save_verification_result', $saved_verification ),
@@ -2037,9 +2064,9 @@ function et_builder_set_element_font( $font, $use_important = false, $default = 
 			$style .= "$font_family ";
 		}
 
-		$style .= et_builder_set_element_font_style( 'font-weight', ( '' !== $font_weight_default ), ( '' !== $font_weight ), 'normal', $font_weight, $use_important );
+		$style .= et_builder_set_element_font_style( 'font-weight', ( '' !== $font_weight_default && ( '' === $font_weight || $font_weight_default === $font_weight ) ), ( '' !== $font_weight ), 'normal', $font_weight, $use_important );
 
-		$style .= et_builder_set_element_font_style( 'font-style', $is_font_italic_default, $is_font_italic, 'none', 'italic', $use_important );
+		$style .= et_builder_set_element_font_style( 'font-style', $is_font_italic_default, $is_font_italic, 'normal', 'italic', $use_important );
 
 		$style .= et_builder_set_element_font_style( 'text-transform', $is_font_uppercase_default, $is_font_uppercase, 'none', 'uppercase', $use_important );
 
@@ -2897,13 +2924,28 @@ function et_builder_set_post_type( $post_type = '' ) {
 	$et_builder_post_type = ! empty( $post_type ) ? $post_type : $post->post_type;
 }
 
+/**
+ * Saves Metabox settings.
+ *
+ * @since 3.29.2 Included check to verify if constant exists before use.
+ *           Throws error otherwise from PHP7.2.x
+ *
+ * @param int     $post_id
+ * @param WP_Post $post
+ */
 function et_pb_metabox_settings_save_details( $post_id, $post ){
 	global $pagenow;
 
 	if ( 'post.php' !== $pagenow ) return $post_id;
 
-	if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE )
+	if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
 		return $post_id;
+	}
+
+	// do not update builder post meta when Preview is loading.
+	if ( isset( $_POST['wp-preview'] ) && 'dopreview' === $_POST['wp-preview'] ) {
+		return $post_id;
+	}
 
 	$post_type = get_post_type_object( $post->post_type );
 	if ( ! current_user_can( $post_type->cap->edit_post, $post_id ) )
@@ -2946,11 +2988,27 @@ function et_pb_metabox_settings_save_details( $post_id, $post ){
 				delete_post_meta( $post_id, '_et_pb_show_page_creation' );
 			}
 		}
+
+		if ( 'on' !== $et_pb_use_builder_input ) {
+			if ( defined( 'ET_BUILDER_WC_PRODUCT_PAGE_CONTENT_STATUS_META_KEY' ) ) {
+				delete_post_meta( $post_id, ET_BUILDER_WC_PRODUCT_PAGE_CONTENT_STATUS_META_KEY );
+			}
+		}
 	} else {
 		delete_post_meta( $post_id, '_et_pb_use_builder' );
 		delete_post_meta( $post_id, '_et_builder_version' );
+		if ( defined( 'ET_BUILDER_WC_PRODUCT_PAGE_CONTENT_STATUS_META_KEY' ) ) {
+			delete_post_meta( $post_id, ET_BUILDER_WC_PRODUCT_PAGE_CONTENT_STATUS_META_KEY );
+		}
 	}
 
+	/**
+	 * et_save_post hook.
+	 *
+	 * @hooked et_builder_set_product_page_layout_meta - 10
+	 *
+	 * @param int $post_id
+	 */
 	do_action( 'et_save_post', $post_id );
 
 	// Do not process Page Settings if BFB is enabled. Were saving it via ajax.
@@ -2958,6 +3016,21 @@ function et_pb_metabox_settings_save_details( $post_id, $post ){
 		// But we still need to save old content
 		if ( isset( $_POST['et_pb_old_content'] ) ) {
 			update_post_meta( $post_id, '_et_pb_old_content', $_POST['et_pb_old_content'] );
+			// WooCommerce Modules needs the following hook.
+
+			/**
+			 * Fires after the `_et_pb_old_content` post meta is updated.
+			 *
+			 * In case you want to over-ride `_et_pb_old_content` content, this is the hook you should use.
+			 * @see et_builder_wc_long_description_metabox_save()
+			 *
+			 * @since 3.29
+			 *
+			 * @param int $post_id Post ID.
+			 * $param WP_Post $post The Post.
+			 * $param array $_POST  Request variables. This could be used for Nonce verification, etc.
+			 */
+			do_action( 'et_pb_old_content_updated', $post_id, $post, $_POST );
 		} else {
 			delete_post_meta( $post_id, '_et_pb_old_content' );
 		}
@@ -3517,12 +3590,13 @@ add_action( 'after_switch_theme', 'et_builder_theme_or_plugin_updated_cb' );
 add_action( 'activated_plugin', 'et_builder_theme_or_plugin_updated_cb', 10, 0 );
 add_action( 'deactivated_plugin', 'et_builder_theme_or_plugin_updated_cb', 10, 0 );
 add_action( 'upgrader_process_complete', 'et_builder_theme_or_plugin_updated_cb', 10, 0 );
+add_action( 'et_support_center_toggle_safe_mode', 'et_builder_theme_or_plugin_updated_cb', 10, 0 );
 endif;
 
 // Register BFB scripts
 if ( ! function_exists( 'et_bfb_enqueue_scripts' ) ):
 function et_bfb_enqueue_scripts() {
-	global $wp_version;
+	global $wp_version, $post;
 
 	$wp_major_version = substr( $wp_version, 0, 3 );
 
@@ -3556,6 +3630,7 @@ function et_bfb_enqueue_scripts() {
 		'et_enable_bfb_nonce'         => wp_create_nonce( 'et_enable_bfb_nonce' ),
 		'default_initial_column_type' => apply_filters( 'et_builder_default_initial_column_type', '4_4' ),
 		'default_initial_text_module' => apply_filters( 'et_builder_default_initial_text_module', 'et_pb_text' ),
+		'skip_default_content_adding' => apply_filters( 'et_builder_skip_content_activation', false, $post ) ? 'skip' : '',
 	) ) );
 }
 endif;
@@ -4278,38 +4353,31 @@ if ( ! function_exists( 'et_builder_activate_bfb_auto_draft' ) ) {
 }
 add_action( 'wp_ajax_et_builder_activate_bfb_auto_draft', 'et_builder_activate_bfb_auto_draft' );
 
-if ( ! function_exists( 'et_builder_ajax_toggle_bfb' ) ) {
-	function et_builder_ajax_toggle_bfb() {
-		et_core_security_check( 'manage_options', 'et_builder_toggle_bfb', 'nonce', '_GET' );
-
-		$enable = isset( $_GET['enable'] ) && $_GET['enable'] === '1';
-		$skip_bfb_optin = isset( $_GET['skip_bfb_optin'] ) && $_GET['skip_bfb_optin'] === '1';
-		$welcome = isset( $_GET['welcome'] );
-		$redirect = isset( $_GET['redirect'] ) ? esc_url_raw( $_GET['redirect'] ) : '';
-
-		if ( empty( $redirect ) && isset( $_SERVER['HTTP_REFERER'] ) ) {
-			$redirect = esc_url_raw( $_SERVER['HTTP_REFERER'] );
-		}
-
-		// skip BFB Optin modal if BB activated using link below the Editor.
-		if ( $skip_bfb_optin ) {
-			et_builder_action_bfb_optin_modal_shown();
-		}
-
-		if ( empty( $redirect ) ) {
-			$redirect = esc_url_raw( admin_url( '/' ) );
-		}
-
-		et_builder_toggle_bfb( $enable );
-
-		if ( ! empty( $welcome ) ) {
-			set_transient( 'et_builder_show_bfb_welcome_modal', true, 0 );
-		}
-
-		wp_safe_redirect( $redirect );
-		exit;
-	}
-}
+if ( ! function_exists( 'et_builder_ajax_toggle_bfb' ) ) {	
+	function et_builder_ajax_toggle_bfb() {	
+		et_core_security_check( 'manage_options', 'et_builder_toggle_bfb', 'nonce', '_GET' );	
+ 		$enable = isset( $_GET['enable'] ) && $_GET['enable'] === '1';	
+		$skip_bfb_optin = isset( $_GET['skip_bfb_optin'] ) && $_GET['skip_bfb_optin'] === '1';	
+		$welcome = isset( $_GET['welcome'] );	
+		$redirect = isset( $_GET['redirect'] ) ? esc_url_raw( $_GET['redirect'] ) : '';	
+ 		if ( empty( $redirect ) && isset( $_SERVER['HTTP_REFERER'] ) ) {	
+			$redirect = esc_url_raw( $_SERVER['HTTP_REFERER'] );	
+		}	
+ 		// skip BFB Optin modal if BB activated using link below the Editor.	
+		if ( $skip_bfb_optin ) {	
+			et_builder_action_bfb_optin_modal_shown();	
+		}	
+ 		if ( empty( $redirect ) ) {	
+			$redirect = esc_url_raw( admin_url( '/' ) );	
+		}	
+ 		et_builder_toggle_bfb( $enable );	
+ 		if ( ! empty( $welcome ) ) {	
+			set_transient( 'et_builder_show_bfb_welcome_modal', true, 0 );	
+		}	
+ 		wp_safe_redirect( $redirect );	
+		exit;	
+	}	
+}	
 add_action( 'wp_ajax_et_builder_toggle_bfb', 'et_builder_ajax_toggle_bfb' );
 
 function et_generate_font_weight_select_output() {
@@ -4681,13 +4749,6 @@ function et_pb_pagebuilder_meta_box() {
 	do_action( 'et_pb_before_page_builder' );
 
 	if ( et_builder_bfb_enabled() ) {
-		$classic_builder_url = add_query_arg( array(
-			'action'         => 'et_builder_toggle_bfb',
-			'enable'         => '0',
-			'skip_bfb_optin' => '1',
-			'nonce'          => wp_create_nonce( 'et_builder_toggle_bfb' ),
-		), admin_url( 'admin-ajax.php' ) );
-
 		$new_page_url = false;
 		$is_new_page  = false;
 		$edit_page_id = get_the_ID();
@@ -4707,11 +4768,8 @@ function et_pb_pagebuilder_meta_box() {
 			$bfb_url = str_replace( 'http://', 'https://', $bfb_url );
 		}
 
-		$is_switch_to_classic_allowed = et_pb_is_allowed( 'divi_builder_control' ) && current_user_can( 'manage_options' );
-		$additional_bfb_class = ! $is_switch_to_classic_allowed ? ' et_divi_builder_bottom_margin' : '';
-
 		echo "
-			<div class='et_divi_builder et-bfb-page-preloading{$additional_bfb_class}'>
+			<div class='et_divi_builder et-bfb-page-preloading et_divi_builder_bottom_margin'>
 				<script>
 					var iframe = document.body.appendChild(document.createElement('iframe'));
 
@@ -4741,37 +4799,25 @@ function et_pb_pagebuilder_meta_box() {
 			</div>
 		";
 
-		if ( $is_switch_to_classic_allowed ) {
-			echo '<div class="et-bfb-optin-cta">';
-				echo '<p class="et-bfb-optin-cta__message et-bfb-optin-cta__message--success">';
-					echo esc_html__( 'You Are Using The Latest Divi Builder Experience.', 'et_builder' );
-					echo '<a href="' . esc_url( $classic_builder_url ) . '" class="et-bfb-optin-cta__button">';
-						echo esc_html__( 'Switch Back To Classic Divi Builder', 'et_builder' );
-					echo '</a>';
-				echo '</p>';
-			echo '</div>';
-		}
-
 		return;
 	}
 
-	$new_builder_url = add_query_arg( array(
-		'action' => 'et_builder_toggle_bfb',
-		'enable' => '1',
-		'nonce' => wp_create_nonce( 'et_builder_toggle_bfb' ),
-	), admin_url( 'admin-ajax.php' ) );
-
-	// Disable BFB notification on Extra category builder. BFB support for Extra category builder will be added post inital launch
-	// This option available for admins only
-	if ( apply_filters( 'et_pb_display_bfb_notification_under_bb', true ) && current_user_can( 'manage_options' ) && et_pb_is_allowed( 'use_visual_builder' ) && et_pb_is_allowed( 'divi_builder_control' ) ) {
-		echo '<div class="et-bfb-optin-cta">';
-			echo '<p class="et-bfb-optin-cta__message et-bfb-optin-cta__message--warning">';
-				echo esc_html__( 'A New And Improved Divi Builder Experience Is Available!', 'et_builder' );
-				echo '<a href="' . esc_url( $new_builder_url ) . '" class="et-bfb-optin-cta__button">';
-					echo esc_html__( 'Switch To The New Divi Builder', 'et_builder' );
-				echo '</a>';
-			echo '</p>';
-		echo '</div>';
+	$new_builder_url = add_query_arg( array(	
+		'action' => 'et_builder_toggle_bfb',	
+		'enable' => '1',	
+		'nonce' => wp_create_nonce( 'et_builder_toggle_bfb' ),	
+	), admin_url( 'admin-ajax.php' ) );	
+ 	// Disable BFB notification on Extra category builder. BFB support for Extra category builder will be added post inital launch	
+	// This option available for admins only	
+	if ( apply_filters( 'et_pb_display_bfb_notification_under_bb', true ) && current_user_can( 'manage_options' ) && et_pb_is_allowed( 'use_visual_builder' ) && et_pb_is_allowed( 'divi_builder_control' ) ) {	
+		echo '<div class="et-bfb-optin-cta">';	
+			echo '<p class="et-bfb-optin-cta__message et-bfb-optin-cta__message--warning">';	
+				echo esc_html__( 'A New And Improved Divi Builder Experience Is Available!', 'et_builder' );	
+				echo '<a href="' . esc_url( $new_builder_url ) . '" class="et-bfb-optin-cta__button">';	
+					echo esc_html__( 'Switch To The New Divi Builder', 'et_builder' );	
+				echo '</a>';	
+			echo '</p>';	
+		echo '</div>';	
 	}
 
 	echo '<div id="et_pb_hidden_editor">';
@@ -5739,7 +5785,7 @@ function et_pb_pagebuilder_meta_box() {
 			<a href="#" class="et-pb-advanced-setting-options">
 				<span>%2$s</span>
 			</a>
-			
+
 			<%% if ( \'et_pb_column\' !== module_type && \'et_pb_column_inner\' !== module_type ) { %%>
 				<a href="#" class="et-pb-clone et-pb-advanced-setting-clone">
 					<span>%3$s</span>
@@ -8390,17 +8436,6 @@ if ( ! function_exists( 'et_is_wp_job_manager_plugin_active' ) ) :
 endif;
 
 /**
- * Is WooCommerce plugin active?
- *
- * @return bool  True - if the plugin is active
- */
-if ( ! function_exists( 'et_is_woocommerce_plugin_active' ) ) :
-	function et_is_woocommerce_plugin_active() {
-		return class_exists( 'WooCommerce' );
-	}
-endif;
-
-/**
  * Is Gutenberg active?
  *
  * @deprecated See {@see et_core_is_gutenberg_active()}
@@ -8664,10 +8699,22 @@ function et_fb_maybe_get_bfb_initial_content( $content, $post_id ) {
 
 	// Save old content
 	$saved_old_content = get_post_meta( $post_id, '_et_pb_old_content', true );
-	$save_old_content = false;
+	$save_old_content  = false;
+	$post              = get_post( $post_id );
 
 	if ( '' !== $content ) {
 		$save_old_content = update_post_meta( $post_id, '_et_pb_old_content', $content );
+	}
+
+	/**
+	 * Filters the flag that sets default Content during Builder activation.
+	 *
+	 * @since 3.29
+	 *
+	 * @used-by et_builder_wc_init()
+	 */
+	if ( apply_filters( 'et_builder_skip_content_activation', false, $post ) ) {
+		return $content;
 	}
 
 	if ( true !== $save_old_content && $saved_old_content !== $content && '' !== $content ) {
@@ -8851,12 +8898,17 @@ function et_fb_get_builder_shortcode_object( $post_type, $post_id, $layout_type 
 			break;
 	}
 
+	$post_content = et_fb_maybe_get_bfb_initial_content( $post_content, $post_id );
+
 	/**
-	 * Filters the raw post content when the Visual Builder is loaded.
+	 * Filters the raw post content when the Builder is loaded.
+	 *
+	 * @since 3.29
 	 *
 	 * @param string $post_content The raw/unprocessed post content.
+	 * @param int $post_id Post ID.
 	 */
-	$post_content = apply_filters( 'et_fb_load_raw_post_content', et_fb_maybe_get_bfb_initial_content( $post_content, $post_id ) );
+	$post_content = apply_filters( 'et_fb_load_raw_post_content', $post_content, $post_id );
 
 	$fields_data['shortcode_object'] = et_fb_process_shortcode( $post_content );
 

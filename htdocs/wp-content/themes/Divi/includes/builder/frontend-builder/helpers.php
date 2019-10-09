@@ -199,6 +199,7 @@ function et_fb_get_dynamic_backend_helpers() {
 		'conditionalTags'                 => et_fb_conditional_tag_params(),
 		'commentsModuleMarkup'            => et_fb_get_comments_markup(),
 		'failureNotification'             => et_builder_get_failure_notification_modal(),
+		'noBrowserSupportNotification'    => et_builder_get_no_browser_notification_modal(),
 		/**
 		 * Filters taxonomies array.
 		 *
@@ -245,7 +246,7 @@ function et_fb_get_dynamic_backend_helpers() {
 			),
 		),
 		'customDefaults'                  => ET_Builder_Element::get_custom_defaults(),
-
+		'module_cache_filename_id'        => ET_Builder_Element::get_cache_filename_id( $post_type ),
 	);
 
 	$custom_defaults_unmigrated = et_get_option( ET_Builder_Custom_Defaults_Settings::CUSTOM_DEFAULTS_UNMIGRATED_OPTION, false );
@@ -303,6 +304,10 @@ function et_fb_get_static_backend_helpers($post_type) {
 		'video'    => 'https://www.youtube.com/watch?v=FkQuawiGWUw',
 	);
 
+	$woocommerce_modules_defaults = array(
+		'price' => '',
+	);
+
 	/**
 	 * App preferences
 	 */
@@ -321,6 +326,11 @@ function et_fb_get_static_backend_helpers($post_type) {
 		'tinymceSkinUrl'               => ET_FB_ASSETS_URI . '/vendors/tinymce-skin',
 		'tinymceCSSFiles'              => esc_url( includes_url( 'js/tinymce' ) . '/skins/wordpress/wp-content.css' ),
 		'images_uri'                   => ET_BUILDER_URI .'/images',
+		'optionTemplate'               => array(
+			'fieldNamePrefix' => et_pb_option_template()->template_prefix,
+			'templates'       => et_pb_option_template()->templates(),
+			'data'            => et_pb_option_template()->all(),
+		),
 		'componentDefinitions'         => array(
 			'generalFields'                => array(),
 			'advancedFields'               => array(),
@@ -435,7 +445,6 @@ function et_fb_get_static_backend_helpers($post_type) {
 		'builderOptions'               => et_builder_options(),
 		'builderVersion'               => ET_BUILDER_PRODUCT_VERSION,
 		'noBuilderSupportNotification' => et_builder_get_no_builder_notification_modal(),
-		'noBrowserSupportNotification' => et_builder_get_no_browser_notification_modal(),
 		'exitNotification'             => et_builder_get_exit_notification_modal(),
 		'browserAutosaveNotification'  => et_builder_get_browser_autosave_notification_modal(),
 		'serverAutosaveNotification'   => et_builder_get_server_autosave_notification_modal(),
@@ -2065,6 +2074,14 @@ function et_fb_backend_helpers() {
 
 		$helpers['cachedAssets'] = true;
 
+		/**
+		 * Filters backend data passed to the Visual Builder.
+		 *
+		 * @since 3.28
+		 *
+		 * @param array $helpers
+		 */
+		$helpers = apply_filters( 'et_fb_backend_helpers', $helpers );
 		// Pass dynamic helpers via localization.
 		wp_localize_script( 'et-dynamic-asset-helpers', 'ETBuilderBackendDynamic', $helpers );
 	} else {

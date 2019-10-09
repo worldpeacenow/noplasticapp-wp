@@ -1,5 +1,7 @@
 <?php
 
+require_once 'helpers/Overlay.php';
+
 class ET_Builder_Module_Blog extends ET_Builder_Module_Type_PostBased {
 	function init() {
 		$this->name       = esc_html__( 'Blog', 'et_builder' );
@@ -147,8 +149,8 @@ class ET_Builder_Module_Blog extends ET_Builder_Module_Type_PostBased {
 				'image'   => array(
 					'css'          => array(
 						'main' => array(
-							'border_radii'  => '%%order_class%% .et_pb_post img, %%order_class%% .et_pb_post .et_pb_slides, %%order_class%% .et_pb_post .et_pb_video_overlay',
-							'border_styles' => '%%order_class%% .et_pb_post img, %%order_class%% .et_pb_post .et_pb_slides, %%order_class%% .et_pb_post .et_pb_video_overlay',
+							'border_radii'  => '%%order_class%% .et_pb_post .entry-featured-image-url img, %%order_class%% .et_pb_post .et_pb_slides, %%order_class%% .et_pb_post .et_pb_video_overlay',
+							'border_styles' => '%%order_class%% .et_pb_post .entry-featured-image-url img, %%order_class%% .et_pb_post .et_pb_slides, %%order_class%% .et_pb_post .et_pb_video_overlay',
 						)
 					),
 					'label_prefix' => esc_html__( 'Image', 'et_builder' ),
@@ -175,7 +177,7 @@ class ET_Builder_Module_Blog extends ET_Builder_Module_Type_PostBased {
 			'margin_padding' => array(
 				'css'           => array(
 					'main' => '%%order_class%%',
-                    'important' => array( 'custom_margin' )
+					'important' => array( 'custom_margin' )
 				),
 			),
 			'text'                  => array(
@@ -707,39 +709,13 @@ class ET_Builder_Module_Blog extends ET_Builder_Module_Type_PostBased {
 		$processed_header_level = esc_html( $processed_header_level );
 
 		$overlay_output = '';
-		$hover_icon = '';
 
 		if ( 'on' === $args['use_overlay'] ) {
-			$data_icon = '' !== $args['hover_icon']
-				? sprintf(
-					' data-icon="%1$s"',
-					esc_attr( et_pb_process_font_icon( $args['hover_icon'] ) )
-				)
-				: '';
-
-			$data_icon_tablet = '' !== $args['hover_icon_tablet']
-				? sprintf(
-					' data-icon-tablet="%1$s"',
-					esc_attr( et_pb_process_font_icon( $args['hover_icon_tablet'] ) )
-				)
-				: '';
-
-			$data_icon_phone = '' !== $args['hover_icon_phone']
-				? sprintf(
-					' data-icon-phone="%1$s"',
-					esc_attr( et_pb_process_font_icon( $args['hover_icon_phone'] ) )
-				)
-				: '';
-
-			$overlay_output = sprintf(
-				'<span class="et_overlay%1$s%3$s%5$s"%2$s%4$s%6$s></span>',
-				( '' !== $args['hover_icon'] ? ' et_pb_inline_icon' : '' ),
-				$data_icon,
-				( '' !== $args['hover_icon_tablet'] ? ' et_pb_inline_icon_tablet' : '' ),
-				$data_icon_tablet,
-				( '' !== $args['hover_icon_phone'] ? ' et_pb_inline_icon_phone' : '' ),
-				$data_icon_phone
-			);
+			$overlay_output = ET_Builder_Module_Helper_Overlay::render( array(
+				'icon'        => $args['hover_icon'],
+				'icon_tablet' => $args['hover_icon_tablet'],
+				'icon_phone'  => $args['hover_icon_phone'],
+			) );
 		}
 
 		$overlay_class = 'on' === $args['use_overlay'] ? ' et_pb_has_overlay' : '';
@@ -1022,9 +998,9 @@ class ET_Builder_Module_Blog extends ET_Builder_Module_Type_PostBased {
 
 	/**
 	 * Render pagination element
-	 * 
+	 *
 	 * @since 3.27.1
-	 * 
+	 *
 	 * @param bool $echo Wether to print the output or return it.
 	 *
 	 * @return (void|string)
@@ -1147,37 +1123,14 @@ class ET_Builder_Module_Blog extends ET_Builder_Module_Type_PostBased {
 		// Hover Overlay Color.
 		et_pb_responsive_options()->generate_responsive_css( $hover_overlay_color_values, '%%order_class%% .et_overlay', 'background-color', $render_slug, '', 'color' );
 
+		$overlay_output = '';
+
 		if ( 'on' === $use_overlay ) {
-			$data_icon = '' !== $hover_icon
-				? sprintf(
-					' data-icon="%1$s"',
-					esc_attr( et_pb_process_font_icon( $hover_icon ) )
-				)
-				: '';
-
-			$data_icon_tablet = '' !== $hover_icon_tablet
-				? sprintf(
-					' data-icon-tablet="%1$s"',
-					esc_attr( et_pb_process_font_icon( $hover_icon_tablet ) )
-				)
-				: '';
-
-			$data_icon_phone = '' !== $hover_icon_phone
-				? sprintf(
-					' data-icon-phone="%1$s"',
-					esc_attr( et_pb_process_font_icon( $hover_icon_phone ) )
-				)
-				: '';
-
-			$overlay_output = sprintf(
-				'<span class="et_overlay%1$s%3$s%5$s"%2$s%4$s%6$s></span>',
-				( '' !== $hover_icon ? ' et_pb_inline_icon' : '' ),
-				$data_icon,
-				( '' !== $hover_icon_tablet ? ' et_pb_inline_icon_tablet' : '' ),
-				$data_icon_tablet,
-				( '' !== $hover_icon_phone ? ' et_pb_inline_icon_phone' : '' ),
-				$data_icon_phone
-			);
+			$overlay_output = ET_Builder_Module_Helper_Overlay::render( array(
+				'icon'        => $hover_icon,
+				'icon_tablet' => $hover_icon_tablet,
+				'icon_phone'  => $hover_icon_phone,
+			) );
 		}
 
 		$overlay_class = 'on' === $use_overlay ? ' et_pb_has_overlay' : '';
@@ -1267,7 +1220,7 @@ class ET_Builder_Module_Blog extends ET_Builder_Module_Type_PostBased {
 
 		$multi_view->set_custom_prop( 'post_meta_removes', $post_meta_removes );
 		$multi_view->set_custom_prop( 'post_content', $multi_view->get_values( 'show_content' ) );
-		
+
 		$show_thumbnail = $multi_view->has_value( 'show_thumbnail', 'on' );
 
 		ob_start();
@@ -1443,7 +1396,7 @@ class ET_Builder_Module_Blog extends ET_Builder_Module_Type_PostBased {
 				echo '</div><!-- .et_pb_salvattore_content -->';
 			}
 
-		    if ( $multi_view->has_value( 'show_pagination', 'on' ) && ! is_search() ) {
+			if ( $multi_view->has_value( 'show_pagination', 'on' ) && ! is_search() ) {
 				$multi_view->render_element( array(
 					'tag'        => 'div',
 					'content'    => $this->render_pagination( false ),
@@ -1663,7 +1616,7 @@ class ET_Builder_Module_Blog extends ET_Builder_Module_Type_PostBased {
 	 * Filter multi view value.
 	 *
 	 * @since 3.27.1
-	 * 
+	 *
 	 * @see ET_Builder_Module_Helper_MultiViewOptions::filter_value
 	 *
 	 * @param mixed $raw_value Props raw value.
@@ -1699,7 +1652,14 @@ class ET_Builder_Module_Blog extends ET_Builder_Module_Type_PostBased {
 				$excerpt_length     = isset( $this->props['excerpt_length'] ) ? $this->props['excerpt_length'] : 270;
 
 				if ( has_excerpt() && 'off' !== $use_manual_excerpt ) {
-					$raw_value = get_the_excerpt();
+					/**
+					 * Filters the displayed post excerpt.
+					 *
+					 * @since 3.29
+					 *
+					 * @param string $post_excerpt The post excerpt.
+					 */
+					$raw_value = apply_filters( 'the_excerpt', get_the_excerpt() );
 				} else {
 					$raw_value = et_core_intentionally_unescaped( wpautop( et_delete_post_first_video( strip_shortcodes( truncate_post( $excerpt_length, false, '', true ) ) ) ), 'html' );
 				}

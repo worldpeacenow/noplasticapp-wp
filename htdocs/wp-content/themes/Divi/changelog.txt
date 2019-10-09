@@ -1,3 +1,198 @@
+version 3.29.3 ( updated 09-17-2019 )
+- Fixed a case where wrong file permission would cause Visual Builder not to work correctly.
+- Fixed map module not working in visual builder when minified JS is used.
+- Fixed missing trash icon on image uploader on all modules with image element.
+- Fixed unwanted anchor tag on tab nav of tabs module.
+- Fixed error when no value is set for center location on Maps module.
+- Fixed endless switching to The New Builder Experience after enabling/disabling plugins or themes.
+- Fixed error when editing numeric input option then quickly move to another options group on settings modal.
+- Fixed button background styles inability to be extended.
+- Make WooCommerce Price' module's price, sale old price, and sale new price groups' copy paste style interchangeable.
+- Fixed image size rendering incorrectly when having name like WordPress image re-sized file name.
+- Improved file based cache data handler.
+- Fixed a case where Visual Builder would reload itself after a short while.
+	* core/components/SupportCenter.php
+	* core/components/cache/File.php
+	* core/functions.php
+	* et-pagebuilder/et-pagebuilder.php
+	* includes/builder/core.php
+	* includes/builder/frontend-builder/assets.php
+	* includes/builder/frontend-builder/bundle.js
+	* includes/builder/functions.php
+	* includes/builder/module/Tabs.php
+	* includes/builder/module/helpers/MultiViewOptions.php
+	* includes/builder/module/woocommerce/Price.php
+	* includes/builder/module/woocommerce/Rating.php
+	* includes/builder/scripts/builder.js
+	* includes/builder/scripts/frontend-builder-scripts.js
+
+version 3.29.2 ( updated 09-13-2019 )
+- Fixed compatibility issue with Cloudinary plugin.
+- Fixed margin settings by moving default margin bottom of product rating to module wrapper on Woo Rating module.
+- Fixed window.et_pb_init_woo_star_rating is not a function error.
+- Fixed warning shown on use of undefined constants.
+- Fixed the issue when a Custom CSS setting may not display the color icon either after the field reset or after the copy and paste a value.
+- Fixed image box shadow styles not being rendered on Woo Images.
+- Updated the Support Center to handle a case where an expected User Role does not exist.
+- Fixed a regression that caused posts created with the builder and configured to use the fullwidth page layout to not render correctly as fullwidth on the frontend.
+	* core/components/SupportCenter.php
+	* functions.php
+	* includes/builder/core.php
+	* includes/builder/frontend-builder/bundle.js
+	* includes/builder/functions.php
+	* includes/builder/module/woocommerce/Images.php
+	* includes/builder/module/woocommerce/Rating.php
+
+version 3.29.1 ( updated 09-12-2019 )
+- Fixed unnecessary data being passed in save payload.
+	* includes/builder/frontend-builder/bundle.js
+
+version 3.29 ( updated 09-12-2019 )
+- Added WooCommerce modules that let Customers build WooCommerce product pages using Divi Builder.
+- Fix to fetch computed props via the logic implemented in Global Defaults.
+- Removed unwanted custom css fields on advanced tab due to recent performance tweak.
+- Fixed disappearing maps on maps module and maps field.
+- Fixed WP-PageNavi for Portfolio Module doesn't work on FE.
+- Fixed the issue when Divi Library JSON layouts were imported without the Type attribute and wrong image URLs.
+	* core/admin/fonts/builder.eot
+	* core/admin/fonts/builder.svg
+	* core/admin/fonts/builder.ttf
+	* core/admin/fonts/builder.woff
+	* core/components/Portability.php
+	* core/functions.php
+	* css/main-styles.css
+	* et-pagebuilder/et-pagebuilder.php
+	* functions.php
+	* includes/builder/class-et-builder-element.php
+	* includes/builder/class-et-builder-settings.php
+	* includes/builder/class-et-global-settings.php
+	* includes/builder/core.php
+	* includes/builder/feature/dynamic-content.php
+	* includes/builder/feature/post-content.php
+	* includes/builder/feature/search-posts.php
+	* includes/builder/feature/woocommerce-modules.php
+	* includes/builder/framework.php
+	* includes/builder/frontend-builder/assets.php
+	* includes/builder/frontend-builder/bfb-template.php
+	* includes/builder/frontend-builder/bundle.js
+	* includes/builder/frontend-builder/helpers.php
+	* includes/builder/functions.php
+	* includes/builder/main-modules.php
+	* includes/builder/module/Blog.php
+	* includes/builder/module/Comments.php
+	* includes/builder/module/Gallery.php
+	* includes/builder/module/Portfolio.php
+	* includes/builder/module/Shop.php
+	* includes/builder/module/Tabs.php
+	* includes/builder/module/TabsItem.php
+	* includes/builder/module/field/Border.php
+	* includes/builder/module/field/BoxShadow.php
+	* includes/builder/module/helpers/MultiViewOptions.php
+	* includes/builder/module/helpers/Overlay.php
+	* includes/builder/module/helpers/WooCommerceModules.php
+	* includes/builder/module/woocommerce/AddToCart.php
+	* includes/builder/module/woocommerce/AdditionalInfo.php
+	* includes/builder/module/woocommerce/Breadcrumb.php
+	* includes/builder/module/woocommerce/CartNotice.php
+	* includes/builder/module/woocommerce/Description.php
+	* includes/builder/module/woocommerce/Gallery.php
+	* includes/builder/module/woocommerce/Images.php
+	* includes/builder/module/woocommerce/Meta.php
+	* includes/builder/module/woocommerce/Price.php
+	* includes/builder/module/woocommerce/Rating.php
+	* includes/builder/module/woocommerce/RelatedProducts.php
+	* includes/builder/module/woocommerce/Reviews.php
+	* includes/builder/module/woocommerce/Stock.php
+	* includes/builder/module/woocommerce/Tabs.php
+	* includes/builder/module/woocommerce/Title.php
+	* includes/builder/module/woocommerce/Upsells.php
+	* includes/builder/scripts/bfb_admin_script.js
+	* includes/builder/scripts/frontend-builder-scripts.js
+	* includes/builder/styles/frontend-builder-global-style.css
+	* includes/builder/styles/style.css
+	* js/custom.js
+	* js/theme-customizer.js
+	* page-template-blank.php
+
+version 3.28 ( updated 09-11-2019 )
+- Fixed short-code not working in excerpts for Blog module.
+- Improved Visual Builder loading time.
+- Fixed unnecessary margin-bottom in the pricing table module.
+- Fixed the issue where Text and Box Shadow options were not reset correctly if those type of options have Global Defaults assigned.
+- Improved performance by using an option template mechanism.
+- Fixed decimal number for circle counter not working in Visual Builder.
+- Fixed unnecessary margins in Fullwidth Header that don't use an image.
+- Fixed justify text alignment option not working in tablet and phone.
+- Removed the PHP warning that appeared when the Divi Builder plugin was activated along with any legacy Elegant Themes theme.
+- Fixed grid thumbnail images not being same size for portfolio and gallery module.
+- Fixed broken icon when the icon size is enabled on hover but the value is inherited from the desktop size.
+- Fixed 406 Not Acceptable errors when submitting forms on certain hosting providers.
+- Fixed grid thumbnail images are not same size for portfolio and gallery module.
+- Fixed a case where Safe Mode could not be enabled in Support Center.
+- Fixed the issue when Divi Library JSON layouts were imported without the Type attribute.
+- Modified the way Support Center is loaded in Divi to improve plugin compatibility.
+- Fixed comment and WooCommerce review email fields' width on mobile being inconsistent.
+	* core/admin/css/wp-admin.css
+	* core/admin/images/epanel/colorpicker_overlay.png
+	* core/admin/images/epanel/colorpicker_select.gif
+	* core/admin/images/epanel/custom_background.png
+	* core/admin/images/epanel/custom_hex.png
+	* core/admin/images/epanel/custom_hsb_b.png
+	* core/admin/images/epanel/custom_hsb_h.png
+	* core/admin/images/epanel/custom_hsb_s.png
+	* core/admin/images/epanel/custom_indic.gif
+	* core/admin/images/epanel/custom_rgb_b.png
+	* core/admin/images/epanel/custom_rgb_g.png
+	* core/admin/images/epanel/custom_rgb_r.png
+	* core/admin/images/epanel/custom_submit.png
+	* core/admin/images/epanel/postinfo-author.gif
+	* core/admin/images/epanel/postinfo-categories.gif
+	* core/admin/images/epanel/postinfo-date.gif
+	* core/admin/images/epanel/select.png
+	* core/admin/images/epanel/select2.png
+	* core/admin/js/checkbox.js
+	* core/admin/js/colorpicker.js
+	* core/admin/js/eye.js
+	* core/admin/js/functions-init.js
+	* core/admin/js/support-center.js
+	* core/admin/js/wp-color-picker-alpha.min.js
+	* core/components/PageResource.php
+	* core/components/SupportCenter.php
+	* core/components/SupportCenterMUAutoloader.php
+	* core/components/init.php
+	* core/components/mu-plugins/SupportCenterSafeModeDisableChildThemes.php
+	* core/functions.php
+	* core/ui/utils/frames.js
+	* css/main-styles.css
+	* epanel/custom_functions.php
+	* functions.php
+	* includes/builder/class-et-builder-element.php
+	* includes/builder/core.php
+	* includes/builder/feature/custom-defaults/Settings.php
+	* includes/builder/framework.php
+	* includes/builder/frontend-builder/assets.php
+	* includes/builder/frontend-builder/assets/css/responsive-preview.css
+	* includes/builder/frontend-builder/bundle.js
+	* includes/builder/frontend-builder/helpers.php
+	* includes/builder/functions.php
+	* includes/builder/module/BarCountersItem.php
+	* includes/builder/module/Blog.php
+	* includes/builder/module/ContactForm.php
+	* includes/builder/module/FullwidthPortfolio.php
+	* includes/builder/module/Gallery.php
+	* includes/builder/module/Image.php
+	* includes/builder/module/Login.php
+	* includes/builder/module/Portfolio.php
+	* includes/builder/module/SocialMediaFollow.php
+	* includes/builder/module/SocialMediaFollowItem.php
+	* includes/builder/module/field/Border.php
+	* includes/builder/module/field/BoxShadow.php
+	* includes/builder/module/field/TextShadow.php
+	* includes/builder/module/helpers/OptionTemplate.php
+	* includes/builder/module/helpers/ResponsiveOptions.php
+	* includes/builder/module/settings/migration/TextAlignment.php
+	* includes/builder/scripts/builder.js
+
 version 3.27.4 ( updated 08-29-2019 )
 - Fixed the first embedded video for Video slider module not being rendered in the builder.
 - Fixed wrong method used while sync the image metadata cache.

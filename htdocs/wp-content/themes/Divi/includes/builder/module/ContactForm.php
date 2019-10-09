@@ -654,7 +654,7 @@ class ET_Builder_Module_Contact_Form extends ET_Builder_Module {
 						<input type="hidden" value="et_contact_proccess" name="et_pb_contactform_submit_%7$s"/>
 						<div class="et_contact_bottom_container">
 							%2$s
-							<button type="submit" class="et_pb_contact_submit et_pb_button%6$s"%5$s%9$s%10$s%11$s%12$s>%3$s</button>
+							<button type="submit" name="et_builder_submit_button" class="et_pb_contact_submit et_pb_button%6$s"%5$s%9$s%10$s%11$s%12$s>%3$s</button>
 						</div>
 						%4$s
 					</form>
@@ -717,7 +717,7 @@ class ET_Builder_Module_Contact_Form extends ET_Builder_Module {
 	 * Filter multi view value.
 	 *
 	 * @since 3.27.1
-	 * 
+	 *
 	 * @see ET_Builder_Module_Helper_MultiViewOptions::filter_value
 	 *
 	 * @param mixed $raw_value Props raw value.

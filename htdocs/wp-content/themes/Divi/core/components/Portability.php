@@ -1164,6 +1164,30 @@ class ET_Core_Portability {
 	}
 
 	/**
+	 * Replace encoded image url with a real url
+	 *
+	 * @param $subject     - The string to perform replacing for
+	 * @param array $image - The image settings
+	 *
+	 * @return string|string[]|null
+	 */
+	protected function replace_image_url( $subject, $image ) {
+		if ( isset( $image['replacement_id'] ) && isset( $image['id'] ) ) {
+			$search      = $image['id'];
+			$replacement = $image['replacement_id'];
+			$subject     = preg_replace( "/(gallery_ids=.*){$search}(.*\")/", "\${1}{$replacement}\${2}", $subject );
+		}
+
+		if ( isset( $image['url'] ) && isset( $image['replacement_url'] ) && $image['url'] !== $image['replacement_url'] ) {
+			$search      = $image['url'];
+			$replacement = $image['replacement_url'];
+			$subject     = str_replace( $search, $replacement, $subject );
+		}
+
+		return $subject;
+	}
+
+	/**
 	 * Replace image urls with newly uploaded images.
 	 *
 	 * @since 2.7.0
@@ -1174,28 +1198,23 @@ class ET_Core_Portability {
 	 * @return array|mixed|object
 	 */
 	protected function replace_images_urls( $images, $data ) {
-		$data_replaced = array();
-
-		foreach ( $data as $key => $value ) {
+		foreach ( $data as $post_id => &$post_data ) {
 			foreach ( $images as $image ) {
-				if ( isset( $image['replacement_id'] ) && isset( $image['id'] ) ) {
-					$search      = $image['id'];
-					$replacement = $image['replacement_id'];
-					$value       = preg_replace( "/(gallery_ids=.*){$search}(.*\")/", "\${1}{$replacement}\${2}", $value );
+				if ( is_array( $post_data ) ) {
+					foreach ( $post_data as $post_param => &$param_value ) {
+						if ( ! is_array( $param_value ) ) {
+							$data[ $post_id ][ $post_param ] = $this->replace_image_url( $param_value, $image );
+						}
+					}
+					unset($param_value);
+				} else {
+					$data[ $post_id ] = $this->replace_image_url( $post_data, $image );
 				}
-
-				if ( isset( $image['url'] ) && isset( $image['replacement_url'] ) && $image['url'] !== $image['replacement_url'] ) {
-					$search      = $image['url'];
-					$replacement = $image['replacement_url'];
-					$value       = str_replace( $search, $replacement, $value );
-				}
-
 			}
-
-			$data_replaced[ $key ] = $value;
 		}
+		unset($post_data);
 
-		return $data_replaced;
+		return $data;
 	}
 
 	/**

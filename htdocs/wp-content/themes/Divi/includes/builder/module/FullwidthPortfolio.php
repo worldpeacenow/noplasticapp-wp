@@ -472,9 +472,18 @@ class ET_Builder_Module_Fullwidth_Portfolio extends ET_Builder_Module_Type_PostB
 					if ( '' !== $thumb_src ) : ?>
 						<div class="et_pb_portfolio_image <?php echo esc_attr( $orientation ); ?>">
 							<?php
-							$this->render_image( $thumb_src, array(
+							$image_attrs = array(
 								'alt' => get_the_title(),
-							) );
+							);
+
+							$full_src = get_the_post_thumbnail_url();
+
+							if ( $full_src ) {
+								$image_attrs['srcset'] = $full_src . ' 479w, ' . $thumb_src . ' 480w';
+								$image_attrs['sizes']  = '(max-width:479px) 479w, 100vw';
+							}
+
+							$this->render_image( $thumb_src, $image_attrs );
 							?>
 							<div class="meta">
 							<a href="<?php esc_url( the_permalink() ); ?>">

@@ -101,7 +101,7 @@ function et_setup_theme() {
 add_action( 'after_setup_theme', 'et_setup_theme' );
 
 function et_divi_load_unminified_scripts( $load ) {
-	/** @see ET_Core_Support_Center::toggle_safe_mode */
+	/** @see ET_Core_SupportCenter::toggle_safe_mode */
 	if ( et_core_is_safe_mode_active() ) {
 		return true;
 	}
@@ -114,7 +114,7 @@ function et_divi_load_unminified_scripts( $load ) {
 }
 
 function et_divi_load_unminified_styles( $load ) {
-	/** @see ET_Core_Support_Center::toggle_safe_mode */
+	/** @see ET_Core_SupportCenter::toggle_safe_mode */
 	if ( et_core_is_safe_mode_active() ) {
 		return true;
 	}
@@ -440,6 +440,9 @@ function et_single_settings_meta_box( $post ) {
 	wp_nonce_field( basename( __FILE__ ), 'et_settings_nonce' );
 
 	$page_layout = get_post_meta( $post_id, '_et_pb_page_layout', true );
+	if ( 'product' === $post->post_type && empty( $page_layout ) ) {
+		$page_layout = et_get_option( 'divi_shop_page_sidebar' );
+	}
 
 	$side_nav = get_post_meta( $post_id, '_et_pb_side_nav', true );
 
@@ -467,7 +470,7 @@ function et_single_settings_meta_box( $post ) {
 	}
 
 	// Fullwidth option available for default post types only. Not available for custom post types.
-	if ( ! et_builder_is_post_type_custom( $post->post_type ) ) {
+	if ( ! et_builder_is_post_type_custom( $post->post_type ) || 'product' === $post->post_type && $is_builder_active ) {
 		$page_layouts['et_full_width_page'] = esc_html__( 'Fullwidth', 'Divi' );
 	}
 
@@ -566,10 +569,39 @@ if ( 'project' === $post->post_type ) : ?>
 		</select>
 	</p>
 <?php endif;
+
+	if ( 'product' === $post->post_type && $is_builder_active ) : ?>
+		<?php
+		$product_page_layouts = et_builder_wc_get_page_layouts( 'Divi' );
+		$product_page_layout  = get_post_meta( $post_id, '_et_pb_product_page_layout', true );
+
+		// Get the default set at Builder level when `$product_page_layout` isn't set at single Product page.
+		if ( empty( $product_page_layout ) ) {
+			$product_page_layout = et_get_option( 'et_pb_woocommerce_page_layout' );
+		}
+		?>
+		<p class="et_pb_product_page_settings et_pb_product_page_layout_settings">
+			<label for="et_pb_product_page_layout"
+				   style="display: block; font-weight: bold; margin-bottom: 5px;"><?php esc_html_e( 'Product Content', 'Divi' ); ?>
+				: </label>
+
+			<select id="et_pb_product_page_layout" name="et_pb_product_page_layout">
+				<?php
+				foreach ( $product_page_layouts as $layout_value => $layout_name ) {
+					printf( '<option value="%2$s"%3$s>%1$s</option>',
+						esc_html( $layout_name ),
+						esc_attr( $layout_value ),
+						selected( $layout_value, $product_page_layout, false )
+					);
+				}
+				?>
+			</select>
+		</p>
+	<?php endif;
 }
 endif;
 
-function et_divi_post_settings_save_details( $post_id, $post ){
+function et_divi_post_settings_save_details( $post_id, $post ) {
 	global $pagenow;
 
 	if ( 'post.php' !== $pagenow || ! $post || ! is_object( $post ) ) {
@@ -629,6 +661,12 @@ function et_divi_post_settings_save_details( $post_id, $post ){
 		update_post_meta( $post_id, '_et_pb_side_nav', sanitize_text_field( $_POST['et_pb_side_nav'] ) );
 	} else {
 		delete_post_meta( $post_id, '_et_pb_side_nav' );
+	}
+
+	if ( isset( $_POST['et_pb_product_page_layout'] ) ) {
+		update_post_meta( $post_id, '_et_pb_product_page_layout', sanitize_text_field( $_POST['et_pb_product_page_layout'] ) );
+	} else {
+		delete_post_meta( $post_id, '_et_pb_product_page_layout' );
 	}
 }
 add_action( 'save_post', 'et_divi_post_settings_save_details', 10, 2 );
@@ -3630,7 +3668,7 @@ function et_divi_add_customizer_css() {
 			return;
 		}
 
-		/** @see ET_Core_Support_Center::toggle_safe_mode */
+		/** @see ET_Core_SupportCenter::toggle_safe_mode */
 		if ( et_core_is_safe_mode_active() ) {
 			return;
 		}
@@ -3892,6 +3930,7 @@ function et_divi_add_customizer_css() {
 			.wp-pagenavi span.current,
 			.wp-pagenavi a:hover,
 			<?php echo $css( '.nav-single a' ); ?>,
+			<?php echo $css( '.tagged_as a' ); ?>,
 			<?php echo $css( '.posted_in a' ); ?> {
 				color: <?php echo esc_html( $accent_color ); ?>;
 			}
@@ -3905,7 +3944,9 @@ function et_divi_add_customizer_css() {
 			<?php echo $css( '.woocommerce', 'a.button.alt' ); ?>,
 			<?php echo $css( '.woocommerce-page', 'a.button.alt' ); ?>,
 			<?php echo $css( '.woocommerce', 'button.button.alt' ); ?>,
+			<?php echo $css( '.woocommerce', 'button.button.alt.disabled' ); ?>,
 			<?php echo $css( '.woocommerce-page', 'button.button.alt' ); ?>,
+			<?php echo $css( '.woocommerce-page', 'button.button.alt.disabled' ); ?>,
 			<?php echo $css( '.woocommerce', 'input.button.alt' ); ?>,
 			<?php echo $css( '.woocommerce-page', 'input.button.alt' ); ?>,
 			.woocommerce #respond input#submit.alt,
@@ -4229,7 +4270,9 @@ function et_divi_add_customizer_css() {
 			<?php echo $css( '.woocommerce', 'a.button.alt' ); ?>,
 			<?php echo $css( '.woocommerce-page', 'a.button.alt' ); ?>,
 			<?php echo $css( '.woocommerce', 'button.button.alt' ); ?>,
+			<?php echo $css( '.woocommerce', 'button.button.alt.disabled' ); ?>,
 			<?php echo $css( '.woocommerce-page', 'button.button.alt' ); ?>,
+			<?php echo $css( '.woocommerce-page', 'button.button.alt.disabled' ); ?>,
 			<?php echo $css( '.woocommerce', 'input.button.alt' ); ?>,
 			<?php echo $css( '.woocommerce-page', 'input.button.alt' ); ?>,
 			.woocommerce #respond input#submit.alt,
@@ -4274,7 +4317,9 @@ function et_divi_add_customizer_css() {
 			<?php echo $css( '.woocommerce.et_pb_button_helper_class', 'a.button.alt' ); ?>,
 			<?php echo $css( '.woocommerce-page.et_pb_button_helper_class', 'a.button.alt' ); ?>,
 			<?php echo $css( '.woocommerce.et_pb_button_helper_class', 'button.button.alt' ); ?>,
+			<?php echo $css( '.woocommerce.et_pb_button_helper_class', 'button.button.alt.disabled' ); ?>,
 			<?php echo $css( '.woocommerce-page.et_pb_button_helper_class', 'button.button.alt' ); ?>,
+			<?php echo $css( '.woocommerce-page.et_pb_button_helper_class', 'button.button.alt.disabled' ); ?>,
 			<?php echo $css( '.woocommerce.et_pb_button_helper_class', 'input.button.alt' ); ?>,
 			<?php echo $css( '.woocommerce-page.et_pb_button_helper_class', 'input.button.alt' ); ?>,
 			.woocommerce.et_pb_button_helper_class #respond input#submit.alt,
@@ -4338,7 +4383,9 @@ function et_divi_add_customizer_css() {
 			<?php echo $css( '.woocommerce', 'a.button.alt:hover' ); ?>,
 			<?php echo $css( '.woocommerce-page', 'a.button.alt:hover' ); ?>,
 			<?php echo $css( '.woocommerce', 'button.button.alt:hover' ); ?>,
+			<?php echo $css( '.woocommerce', 'button.button.alt.disabled:hover' ); ?>,
 			<?php echo $css( '.woocommerce-page', 'button.button.alt:hover' ); ?>,
+			<?php echo $css( '.woocommerce-page', 'button.button.alt.disabled:hover' ); ?>,
 			<?php echo $css( '.woocommerce', 'input.button.alt:hover' ); ?>,
 			<?php echo $css( '.woocommerce-page', 'input.button.alt:hover' ); ?>,
 			.woocommerce #respond input#submit.alt:hover,
@@ -6064,7 +6111,7 @@ function et_password_form() {
 			<p>%2$s:</p>
 			<form action="%3$s" method="post">
 				<p><label for="%4$s">%5$s: </label><input name="post_password" id="%4$s" type="password" size="20" maxlength="20" /></p>
-				<p><button type="submit" class="et_submit_button et_pb_button">%6$s</button></p>
+				<p><button type="submit" name="et_divi_submit_button" class="et_submit_button et_pb_button">%6$s</button></p>
 			</form>
 		</div>',
 		esc_html__( 'Password Protected', 'Divi' ),
@@ -6374,20 +6421,28 @@ require_once( get_template_directory() . '/et-pagebuilder/et-pagebuilder.php' );
  * @return array
  */
 function et_divi_sidebar_class( $classes ) {
+	$page_layout           = '';
 	$default_sidebar_class = et_get_option( 'divi_sidebar' );
 	$post_id = get_queried_object_id();
-	$is_builder_active = 'on' === get_post_meta( $post_id, '_et_pb_use_builder', true );
+	$is_builder_active = 'on' === get_post_meta( $post_id, '_et_pb_use_builder', true ) || ( function_exists( 'et_fb_is_enabled' ) && et_fb_is_enabled() );
 
 	if ( ! $default_sidebar_class ) {
 		$default_sidebar_class = is_rtl() ? 'et_left_sidebar' : 'et_right_sidebar';
 	}
 
 	// Set Woo shop and taxonomies layout.
-	if ( class_exists( 'woocommerce' ) && ( is_woocommerce() && ( is_shop() || is_tax() ) ) ) {
-		$page_layout = et_get_option( 'divi_shop_page_sidebar', $default_sidebar_class );
-	} elseif ( ! is_singular() || ! ( $page_layout = get_post_meta( $post_id, '_et_pb_page_layout', true ) ) ) { // check for the falsy value not for boolean `false`
+	if ( class_exists( 'woocommerce' ) && ( is_woocommerce() && ( is_shop() || is_tax() || is_product() ) ) ) {
+		if ( is_product() ) {
+			$saved_page_layout = get_post_meta( $post_id, '_et_pb_page_layout', true );
+			$page_layout = ! $saved_page_layout || ( 'et_full_width_page' === $saved_page_layout && ! $is_builder_active ) ? $default_sidebar_class : $saved_page_layout;
+		} else {
+			$page_layout = et_get_option( 'divi_shop_page_sidebar', $default_sidebar_class );
+		}
+	} elseif ( ! is_singular() || ( ! ( $page_layout = get_post_meta( $post_id, '_et_pb_page_layout', true ) ) && ! $is_builder_active ) ) { // check for the falsy value not for boolean `false`
 		// Set post meta layout which will work for all third party plugins.
 		$page_layout = $default_sidebar_class;
+	} elseif ( $is_builder_active && ! $page_layout ) {
+		$page_layout = 'et_no_sidebar';
 	}
 
 	// Handle et_no_sidebar class. It should be no_sidebar for all custom post types, or any post type if builder active.
@@ -6502,7 +6557,6 @@ endif;
 function et_divi_output_product_wrapper() {
 	echo '<div class="clearfix">';
 }
-
 
 function et_divi_output_product_wrapper_end() {
 	echo '</div><!-- #end wrapper -->';
@@ -6631,16 +6685,11 @@ function et_pb_check_options_access() {
  *
  * @since ??
  */
-function et_add_divi_support_center(){
-	// Make sure we don't load it twice
-	if ( ! class_exists( 'ET_Core_Support_Center' ) ) {
-		include_once 'core/components/SupportCenter.php';
-	}
-
-	$support_center = new ET_Core_Support_Center('divi_theme');
+function et_add_divi_support_center() {
+	$support_center = new ET_Core_SupportCenter( 'divi_theme' );
 	$support_center->init();
 }
-add_action('init', 'et_add_divi_support_center' );
+add_action( 'init', 'et_add_divi_support_center' );
 
 /**
  * Allowing blog and portfolio module pagination to work in non-hierarchical singular page.
