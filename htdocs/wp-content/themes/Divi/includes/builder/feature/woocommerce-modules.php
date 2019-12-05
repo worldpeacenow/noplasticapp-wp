@@ -62,6 +62,7 @@ function et_builder_wc_get_page_layouts( $translation_context = 'et_builder' ) {
  * Adding in the Builder Settings tab will ensure that the field is available in Extra Theme and
  * Divi Builder Plugin.
  *
+ * @since 4.0.3 Hide Product Content layout settings Divi Builder Plugin options.
  * @since 3.29
  *
  * @param array $builder_settings_fields
@@ -77,6 +78,24 @@ function et_builder_wc_add_settings( $builder_settings_fields ) {
 	}
 
 	$fields = array(
+		'et_pb_woocommerce_product_layout' => array(
+			'type'            => 'select',
+			'id'              => 'et_pb_woocommerce_product_layout',
+			'index'           => - 1,
+			'label'           => esc_html__( 'Product Layout', 'et_builder' ),
+			'description'     => esc_html__( 'Here you can choose Product Page Layout for WooCommerce.', 'et_builder' ),
+			'options'         => array(
+				'et_right_sidebar'   => esc_html__( 'Right Sidebar', 'et_builder' ),
+				'et_left_sidebar'    => esc_html__( 'Left Sidebar', 'et_builder' ),
+				'et_no_sidebar'      => esc_html__( 'No Sidebar', 'et_builder' ),
+				'et_full_width_page' => esc_html__( 'Fullwidth', 'et_builder' ),
+			),
+			'default'         => 'et_right_sidebar',
+			'validation_type' => 'simple_text',
+			'et_save_values'  => true,
+			'tab_slug'        => 'post_type_integration',
+			'toggle_slug'     => 'performance',
+		),
 		'et_pb_woocommerce_page_layout' => array(
 			'type'            => 'select',
 			'id'              => 'et_pb_woocommerce_product_page_layout',
@@ -91,6 +110,11 @@ function et_builder_wc_add_settings( $builder_settings_fields ) {
 			'toggle_slug'     => 'performance',
 		),
 	);
+
+	// Hide setting in DBP : https://github.com/elegantthemes/Divi/issues/17378
+	if ( et_is_builder_plugin_active() ) {
+		unset( $fields['et_pb_woocommerce_product_layout'] );
+	}
 
 	return array_merge( $builder_settings_fields, $fields );
 }
@@ -133,7 +157,7 @@ function et_builder_wc_get_initial_content( $args = array() ) {
 					[et_pb_wc_rating][/et_pb_wc_rating]
 					[et_pb_wc_price][/et_pb_wc_price]
 					[et_pb_wc_description][/et_pb_wc_description]
-					[et_pb_wc_add_to_cart form_field_text_align="center" form_field_background_color="#cccccc"][/et_pb_wc_add_to_cart]
+					[et_pb_wc_add_to_cart form_field_text_align="center"][/et_pb_wc_add_to_cart]
 					[et_pb_wc_meta][/et_pb_wc_meta]
 				[/et_pb_column]
 			[/et_pb_row]
@@ -390,8 +414,14 @@ function et_builder_wc_render_module_template( $function_name, $args = array(), 
 	$overwrite_product  = in_array( 'product', $overwrite );
 	$overwrite_post     = in_array( 'post', $overwrite );
 	$overwrite_wp_query = in_array( 'wp_query', $overwrite );
+	$is_tb              = et_builder_tb_enabled();
 
-	if ( $overwrite_global ) {
+	if ( $is_tb ) {
+		// global object needs to be set before output rendering. This needs to be performed on each
+		// module template rendering instead of once for all module template rendering because some
+		// module's template rendering uses `wp_reset_postdata()` which resets global query
+		et_theme_builder_wc_set_global_objects();
+	} else if ( $overwrite_global ) {
 		$is_latest_product       = 'latest' === $args['product'];
 		$is_current_product_page = 'current' === $args['product'];
 
@@ -399,7 +429,7 @@ function et_builder_wc_render_module_template( $function_name, $args = array(), 
 			// Dynamic filter's product_id need to be translated into correct id
 			// @todo once `product_filter` has more options, this might change
 			$product_id = ET_Builder_Module_Helper_Woocommerce_Modules::get_product_id( $args['product'] );
-		} elseif ( $is_current_product_page && wp_doing_ajax() ) {
+		} elseif ( $is_current_product_page && wp_doing_ajax() && class_exists( 'ET_Builder_Element' ) ) {
 			// $product global doesn't exist in ajax request; thus get the fallback post id
 			// this is likely happen in computed callback ajax request
 			$product_id = ET_Builder_Element::get_current_post_id();
@@ -411,6 +441,22 @@ function et_builder_wc_render_module_template( $function_name, $args = array(), 
 				// Fallback to Latest product if saved product ID doesn't exist.
 				$product_id = ET_Builder_Module_Helper_Woocommerce_Modules::get_product_id( 'latest' );
 			}
+		}
+
+		if ( 'product' !== get_post_type( $product_id ) ) {
+			// We are in a Theme Builder layout and the current post is not a product - use the latest one instead.
+			$products = new WP_Query( array(
+				'post_type'      => 'product',
+				'post_status'    => 'publish',
+				'posts_per_page' => 1,
+				'no_found_rows'  => true,
+			) );
+
+			if ( ! $products->have_posts() ) {
+				return '';
+			}
+
+			$product_id = $products->posts[0]->ID;
 		}
 
 		// Overwrite product
@@ -436,8 +482,11 @@ function et_builder_wc_render_module_template( $function_name, $args = array(), 
 
 	switch( $function_name ) {
 		case 'woocommerce_breadcrumb':
+			$breadcrumb_separator = et_()->array_get( $args, 'breadcrumb_separator', '' );
+			$breadcrumb_separator = str_replace( '&#8221;', '', $breadcrumb_separator );
+
 			woocommerce_breadcrumb( array(
-				'delimiter'   => ' ' . et_()->array_get( $args, 'breadcrumb_separator', '' ) . ' ',
+				'delimiter'   => ' ' . $breadcrumb_separator . ' ',
 				'home'        => et_()->array_get( $args, 'breadcrumb_home_text', '' ),
 			) );
 			break;
@@ -515,7 +564,9 @@ function et_builder_wc_render_module_template( $function_name, $args = array(), 
 	$output = ob_get_clean();
 
 	// Reset original product variable to global $product
-	if ( $overwrite_global ) {
+	if ( $is_tb ) {
+		et_theme_builder_wc_reset_global_objects();
+	} else if ( $overwrite_global ) {
 		// Reset $product global
 		if ( $overwrite_product ) {
 			$product = $original_product;
@@ -593,7 +644,7 @@ function et_builder_wc_override_default_layout() {
 	$product_page_layout         = et_builder_wc_get_product_layout( $post->ID );
 	$is_product_content_modified = 'modified' === get_post_meta( $post->ID, ET_BUILDER_WC_PRODUCT_PAGE_CONTENT_STATUS_META_KEY, true );
 	$is_preview_loading          = is_preview();
-	
+
 	// BFB was enabled but page content wasn't saved yet. Load default layout on FE.
 	if ( 'et_build_from_scratch' === $product_page_layout && ! $is_product_content_modified && ! $is_preview_loading ) {
 		return;
@@ -721,6 +772,7 @@ function et_builder_wc_skip_initial_content( $flag, $post ) {
 /**
  * Determine whether given content has WooCommerce module inside it or not
  *
+ * @since 4.0 Added ET_Builder_Element class exists check.
  * @since 3.29
  *
  * @param string $content
@@ -728,10 +780,14 @@ function et_builder_wc_skip_initial_content( $flag, $post ) {
  * @return bool
  */
 function et_builder_has_woocommerce_module( $content = '' ) {
+	if ( ! class_exists( 'ET_Builder_Element' ) ) {
+		return false;
+	}
+
 	$has_woocommerce_module = false;
 	$woocommerce_modules    = ET_Builder_Element::get_woocommerce_modules();
 
-	foreach( $woocommerce_modules as $module ) {
+	foreach ( $woocommerce_modules as $module ) {
 		if ( has_shortcode( $content, $module ) ) {
 			$has_woocommerce_module = true;
 
@@ -755,11 +811,24 @@ function et_builder_has_woocommerce_module( $content = '' ) {
 function et_builder_wc_is_non_product_post_type() {
 	global $post;
 
-	$is_non_product_builder = $post && et_pb_is_pagebuilder_used( $post->ID ) &&
-		'product' !== $post->post_type &&
-		et_builder_has_woocommerce_module( $post->post_content );
+	if ( $post && 'product' === $post->post_type ) {
+		return false;
+	}
 
-	return $is_non_product_builder;
+	$types   = et_theme_builder_get_layout_post_types();
+	$layouts = et_theme_builder_get_template_layouts();
+
+	foreach ( $types as $type ) {
+		if ( ! isset( $layouts[ $type ] ) ) {
+			continue;
+		}
+
+		if ( $layouts[ $type ]['override'] && et_builder_has_woocommerce_module( get_post_field( 'post_content', $layouts[ $type ]['id'] ) ) ) {
+			return true;
+		}
+	}
+
+	return $post && et_pb_is_pagebuilder_used( $post->ID ) && et_builder_has_woocommerce_module( $post->post_content );
 }
 
 /**
@@ -776,7 +845,7 @@ function et_builder_wc_load_scripts() {
 	global $post;
 
 	// If current page is not non-`product` CPT which using builder, stop early
-	if ( ( ! et_builder_wc_is_non_product_post_type() || ! class_exists( 'WC_Frontend_Scripts' ) ) && ! et_fb_enabled() ) {
+	if ( ( ! et_builder_wc_is_non_product_post_type() || ! class_exists( 'WC_Frontend_Scripts' ) ) && function_exists( 'et_fb_enabled' ) && ! et_fb_enabled() ) {
 		return;
 	}
 
@@ -851,6 +920,55 @@ function et_builder_wc_add_inner_content_class( $classes ) {
 	if ( et_builder_wc_is_non_product_post_type() || is_product() ) {
 		$classes[] = 'product';
 	}
+
+	return $classes;
+}
+
+/**
+ * Add WooCommerce class names on Divi Shop Page (not WooCommerce Shop).
+ *
+ * @since 4.0.7
+ *
+ * @param array $classes Array of Classes.
+ *
+ * @return array
+ */
+function et_builder_wc_add_outer_content_class( $classes ) {
+	$body_classes = get_body_class();
+
+	// Add Class only to WooCommerce Shop page if built using Divi (i.e. Divi Shop page).
+	if ( ! ( function_exists( 'is_shop' ) && is_shop() ) ) {
+		return $classes;
+	}
+
+	// Add Class only when the WooCommerce Shop page is built using Divi.
+	if ( ! et_builder_wc_is_non_product_post_type() ) {
+		return $classes;
+	}
+
+	// Precautionary check: $body_classes should always be an array.
+	if ( ! is_array( $body_classes ) ) {
+		return $classes;
+	}
+
+	// Add Class only when the <body> tag does not contain them.
+	$woocommerce_classes = array( 'woocommerce', 'woocommerce-page' );
+	$common_classes      = array_intersect( $body_classes, array(
+		'woocommerce',
+		'woocommerce-page',
+	) );
+	if ( is_array( $common_classes )
+		 && count( $woocommerce_classes ) === count( $common_classes ) ) {
+		return $classes;
+	}
+
+	// Precautionary check: $classes should always be an array.
+	if ( ! is_array( $classes ) ) {
+		return $classes;
+	}
+
+	$classes[] = 'woocommerce';
+	$classes[] = 'woocommerce-page';
 
 	return $classes;
 }
@@ -936,6 +1054,8 @@ function et_builder_wc_init() {
 	// Add WooCommerce class names on non-`product` CPT which uses builder
 	add_filter( 'body_class', 'et_builder_wc_add_body_class' );
 	add_filter( 'et_builder_inner_content_class', 'et_builder_wc_add_inner_content_class' );
+	add_filter( 'et_builder_outer_content_class', 'et_builder_wc_add_outer_content_class' );
+
 
 	// Load WooCommerce related scripts
 	add_action( 'wp_enqueue_scripts', 'et_builder_wc_load_scripts', 15 );

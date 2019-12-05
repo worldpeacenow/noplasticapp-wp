@@ -7,7 +7,7 @@
  *
  * @package Divi\Builder
  *
- * @since   ??
+ * @since   3.29
  */
 
 /**
@@ -90,7 +90,7 @@ class ET_Builder_Module_Woocommerce_Title extends ET_Builder_Module {
 		$this->custom_css_fields = array(
 			'title_text' => array(
 				'label'    => esc_html__( 'Title Text', 'et_builder' ),
-				'selector' => 'h1, h2, h3, h4, h5, h6',
+				'selector' => '%%order_class%% h1, %%order_class%% h2, %%order_class%% h3, %%order_class%% h4, %%order_class%% h5, %%order_class%% h6',
 			),
 		);
 
@@ -110,7 +110,7 @@ class ET_Builder_Module_Woocommerce_Title extends ET_Builder_Module {
 			'product'        => ET_Builder_Module_Helper_Woocommerce_Modules::get_field(
 				'product',
 				array(
-					'default'          => 'product' === $this->get_post_type() ? 'current' : 'latest',
+					'default'          => ET_Builder_Module_Helper_Woocommerce_Modules::get_product_default(),
 					'computed_affects' => array(
 						'__title',
 					),
@@ -151,6 +151,10 @@ class ET_Builder_Module_Woocommerce_Title extends ET_Builder_Module {
 	 * @return string
 	 */
 	public static function get_title( $args = array() ) {
+		if ( et_builder_tb_enabled() ) {
+			return esc_html( 'Product Name', 'et_builder' );
+		}
+
 		$defaults = array(
 			'product' => 'current',
 		);

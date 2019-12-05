@@ -7,7 +7,7 @@
  *
  * @package Divi\Builder
  *
- * @since   ??
+ * @since   3.29
  */
 
 /**
@@ -39,38 +39,25 @@ class ET_Builder_Module_Woocommerce_Cart_Notice extends ET_Builder_Module {
 			),
 		);
 
-		$this->main_css_element = '%%order_class%%';
+		$this->main_css_element = '%%order_class%% .woocommerce-message';
 
 		$this->advanced_fields = array(
 			'fonts'          => array(
 				'body' => array(
-					'label'       => esc_html__( 'Text', 'et_builder' ),
-					'css'         => array(
+					'label'           => esc_html__( 'Text', 'et_builder' ),
+					'css'             => array(
 						'main'      => '%%order_class%% .woocommerce-message',
 						// CPT style uses `!important` so outputting important is inevitable.
 						'important' => 'all',
 					),
-					'font_size'   => array(
+					'font_size'       => array(
 						'default' => '18px',
 					),
-					'line_height' => array(
+					'line_height'     => array(
 						'default' => '1.7em',
 					),
-					'toggle_slug' => 'text',
+					'toggle_slug'     => 'text',
 					'hide_text_align' => true,
-				),
-			),
-			'background'     => array(
-				'has_background_color_toggle' => true,
-				'use_background_color'        => true,
-				'options'                     => array(
-					'background_color'     => array(
-						'depends_show_if' => 'on',
-						'default'         => '#2ea3f2',
-					),
-					'use_background_color' => array(
-						'default' => 'on',
-					),
 				),
 			),
 			'max_width'      => array(
@@ -86,21 +73,22 @@ class ET_Builder_Module_Woocommerce_Cart_Notice extends ET_Builder_Module {
 				'custom_padding' => array(
 					'default' => '15px|15px|15px|15px|false|false',
 				),
-				'custom_margin' => array(
+				'custom_margin'  => array(
 					'default' => '0em|0em|2em|0em|false|false',
 				),
 			),
 			'button'         => array(
 				'button' => array(
-					'label'         => esc_html__( 'Button', 'et_builder' ),
-					'css'           => array(
-						'main' => '%%order_class%% .wc-forward',
+					'label'          => esc_html__( 'Button', 'et_builder' ),
+					'css'            => array(
+						'main'      => '%%order_class%% .wc-forward',
+						'important' => true,
 					),
-					'use_alignment' => false,
-					'border_width'  => array(
+					'use_alignment'  => false,
+					'border_width'   => array(
 						'default' => '0px',
 					),
-					'box_shadow'    => array(
+					'box_shadow'     => array(
 						'css' => array(
 							'main' => '%%order_class%% .wc-forward',
 						),
@@ -130,6 +118,16 @@ class ET_Builder_Module_Woocommerce_Cart_Notice extends ET_Builder_Module {
 			'text_shadow'    => array(
 				// Don't add text-shadow fields since they already are via font-options.
 				'default' => false,
+			),
+			'background'     => array(
+				'css' => array(
+					// Defined explicitly to solve
+					// @see https://github.com/elegantthemes/Divi/issues/17200#issuecomment-542140907
+					'main'      => '%%order_class%% .woocommerce-message',
+					// Important is required to override
+					// Appearance ⟶ Customize ⟶ Color schemes styles.
+					'important' => 'all',
+				),
 			),
 		);
 
@@ -167,7 +165,7 @@ class ET_Builder_Module_Woocommerce_Cart_Notice extends ET_Builder_Module {
 		);
 
 		// Clear notices array which was modified during render.
-		add_action( 'et_builder_wc_product_after_render_layout', array( 'ET_Builder_Module_Woocommerce_Cart_Notice', 'clear_notices' ) );
+		add_action( 'wp_footer', array( 'ET_Builder_Module_Woocommerce_Cart_Notice', 'clear_notices' ) );
 	}
 
 	/**
@@ -178,7 +176,7 @@ class ET_Builder_Module_Woocommerce_Cart_Notice extends ET_Builder_Module {
 			'product'        => ET_Builder_Module_Helper_Woocommerce_Modules::get_field(
 				'product',
 				array(
-					'default'          => 'product' === $this->get_post_type() ? 'current' : 'latest',
+					'default'          => ET_Builder_Module_Helper_Woocommerce_Modules::get_product_default(),
 					'computed_affects' => array(
 						'__cart_notice',
 					),

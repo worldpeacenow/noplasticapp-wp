@@ -112,6 +112,15 @@ class ET_Builder_Module_Helper_MultiViewOptions {
 	protected $cached_values = array();
 
 	/**
+	 * Set list of props keys that need to inherit the value
+	 *
+	 * @since 4.0.2
+	 *
+	 * @var array
+	 */
+	protected $inherited_values = array();
+
+	/**
 	 * Hover enabled option name suffix
 	 *
 	 * @since 3.27.1
@@ -193,6 +202,30 @@ class ET_Builder_Module_Helper_MultiViewOptions {
 		}
 
 		return $name;
+	}
+
+	/**
+	 * Get regex field name suffix
+	 *
+	 * @since 4.0.1
+	 *
+	 * @return string
+	 */
+	public static function get_regex_suffix() {
+		return '/(__hover|__hover_enabled|_last_edited|_tablet|_phone)$/';
+	}
+
+	/**
+	 * Get props name base
+	 *
+	 * @since 4.0.1
+	 *
+	 * @param string $name Props name.
+	 *
+	 * @return string
+	 */
+	public static function get_name_base( $name ) {
+		return preg_replace( self::get_regex_suffix(), '', $name );
 	}
 
 	/**
@@ -304,16 +337,8 @@ class ET_Builder_Module_Helper_MultiViewOptions {
 	 *
 	 * @return mixed Value of selected mode.
 	 */
-	public function get_value_desktop( $name, $default_value = '' ) {
-		if ( '' === strval( $default_value ) && isset( $this->default_values[ $name ]['desktop'] ) ) {
-			$default_value = $this->default_values[ $name ]['desktop'];
-		}
-
-		if ( isset( $this->custom_props[ $name ]['desktop'] ) ) {
-			return et_()->array_get( $this->custom_props[ $name ], 'desktop', $default_value );
-		}
-
-		return et_()->array_get( $this->props, $name, $default_value );
+	public function get_value_desktop( $name, $default_value = null ) {
+		return $this->get_value( $name, 'desktop', $default_value );
 	}
 
 	/**
@@ -326,18 +351,8 @@ class ET_Builder_Module_Helper_MultiViewOptions {
 	 *
 	 * @return mixed Value of selected mode.
 	 */
-	public function get_value_tablet( $name, $default_value = '' ) {
-		if ( '' === strval( $default_value ) && isset( $this->default_values[ $name ]['tablet'] ) ) {
-			$default_value = $this->default_values[ $name ]['tablet'];
-		}
-
-		if ( isset( $this->custom_props[ $name ]['tablet'] ) ) {
-			return et_()->array_get( $this->custom_props[ $name ], 'tablet', $default_value );
-		} elseif ( $this->responsive_is_enabled( $name ) ) {
-			return et_pb_responsive_options()->get_tablet_value( $name, $this->props, $default_value );
-		}
-
-		return $default_value;
+	public function get_value_tablet( $name, $default_value = null ) {
+		return $this->get_value( $name, 'tablet', $default_value );
 	}
 
 	/**
@@ -350,18 +365,8 @@ class ET_Builder_Module_Helper_MultiViewOptions {
 	 *
 	 * @return mixed Value of selected mode.
 	 */
-	public function get_value_phone( $name, $default_value = '' ) {
-		if ( '' === strval( $default_value ) && isset( $this->default_values[ $name ]['phone'] ) ) {
-			$default_value = $this->default_values[ $name ]['phone'];
-		}
-
-		if ( isset( $this->custom_props[ $name ]['phone'] ) ) {
-			return et_()->array_get( $this->custom_props[ $name ], 'phone', $default_value );
-		} elseif ( $this->responsive_is_enabled( $name ) ) {
-			return et_pb_responsive_options()->get_phone_value( $name, $this->props, $default_value );
-		}
-
-		return $default_value;
+	public function get_value_phone( $name, $default_value = null ) {
+		return $this->get_value( $name, 'phone', $default_value );
 	}
 
 	/**
@@ -374,18 +379,8 @@ class ET_Builder_Module_Helper_MultiViewOptions {
 	 *
 	 * @return mixed Value of selected mode.
 	 */
-	public function get_value_hover( $name, $default_value = '' ) {
-		if ( '' === strval( $default_value ) && isset( $this->default_values[ $name ]['phone'] ) ) {
-			$default_value = $this->default_values[ $name ]['phone'];
-		}
-
-		if ( isset( $this->custom_props[ $name ]['hover'] ) ) {
-			return et_()->array_get( $this->custom_props[ $name ], 'hover', $default_value );
-		} elseif ( $this->hover_is_enabled( $name ) ) {
-			return et_pb_hover_options()->get_value( $name, $this->props, $default_value );
-		}
-
-		return $default_value;
+	public function get_value_hover( $name, $default_value = null ) {
+		return $this->get_value( $name, 'hover', $default_value );
 	}
 
 	/**
@@ -399,20 +394,8 @@ class ET_Builder_Module_Helper_MultiViewOptions {
 	 *
 	 * @return mixed Value of selected mode.
 	 */
-	public function get_value( $name, $mode = 'desktop', $default_value = '' ) {
-		switch ( $mode ) {
-			case 'hover':
-				return $this->get_value_hover( $name, $default_value );
-
-			case 'tablet':
-				return $this->get_value_tablet( $name, $default_value );
-
-			case 'phone':
-				return $this->get_value_phone( $name, $default_value );
-
-			default:
-				return $this->get_value_desktop( $name, $default_value );
-		}
+	public function get_value( $name, $mode = 'desktop', $default_value = null ) {
+		return et_()->array_get( $this->get_values( $name ), $mode, $default_value );
 	}
 
 	/**
@@ -421,37 +404,54 @@ class ET_Builder_Module_Helper_MultiViewOptions {
 	 * @since 3.27.1
 	 *
 	 * @param string $name     Props name.
-	 * @param bool   $distinct Wether to disticnt the values or not.
+	 * @param bool   $distinct Wether to distinct the values or not.
 	 *
 	 * @return array Values of all view modes: desktop, tablet, phone, hover.
 	 */
 	public function get_values( $name, $distinct = true ) {
-		$cache_key = $distinct ? $name . '__distinct' : $name;
+		if ( ! isset( $this->cached_values[ $name ] ) ) {
+			$values = array();
 
-		if ( isset( $this->cached_values[ $cache_key ] ) ) {
-			return $this->cached_values[ $cache_key ];
-		}
+			if ( isset( $this->custom_props[ $name ] ) ) {
+				foreach ( self::get_modes() as $mode ) {
+					$value = et_()->array_get( $this->custom_props[ $name ], $mode, '' );
 
-		$values = array();
+					if ( '' === $value && isset( $this->default_values[ $name ][ $mode ] ) ) {
+						$value = $this->default_values[ $name ][ $mode ];
+					}
 
-		foreach ( self::get_modes() as $mode ) {
-			if ( ! $this->mode_is_enabled( $name, $mode ) && ! isset( $this->custom_props[ $name ] ) ) {
-				continue;
+					if ( ! $this->is_props_inherited( self::get_name_by_mode( $name, $mode ), $value ) ) {
+						$values[ $mode ] = $value;
+					}
+				}
+			} else {
+				foreach ( self::get_modes() as $mode ) {
+					if ( ! $this->mode_is_enabled( $name, $mode ) ) {
+						continue;
+					}
+
+					$value = et_()->array_get( $this->props, self::get_name_by_mode( $name, $mode ), '' );
+
+					if ( '' === $value && isset( $this->default_values[ $name ][ $mode ] ) ) {
+						$value = $this->default_values[ $name ][ $mode ];
+					}
+
+					if ( ! $this->is_props_inherited( self::get_name_by_mode( $name, $mode ), $value ) ) {
+						$values[ $mode ] = $value;
+					}
+				}
 			}
 
-			$values[ $mode ] = $this->get_value( $name, $mode );
+			// Normalize the values to make to all the view modes has own data.
+			$this->cached_values[ $name ] = $this->normalize_values( $values );
 		}
 
-		// Normalize the values to make to have all the view modes hold each data.
-		$values = $this->normalize_values( $values );
-
+		// Distinct the values to omit duplicate values across modes.
 		if ( $distinct ) {
-			$values = $this->distinct_values( $values );
+			return $this->distinct_values( $this->cached_values[ $name ] );
 		}
 
-		$this->cached_values[ $cache_key ] = $values;
-
-		return $values;
+		return $this->cached_values[ $name ];
 	}
 
 	/**
@@ -468,11 +468,13 @@ class ET_Builder_Module_Helper_MultiViewOptions {
 		$match = false;
 
 		if ( is_null( $value_compare ) ) {
-			$match = '' !== $value;
+			$match = is_string( $value ) || is_numeric( $value ) ? strlen( $value ) : ! empty( $value );
 		} elseif ( is_array( $value_compare ) ) {
 			$match = in_array( $value, $value_compare, true );
 		} elseif ( is_callable( $value_compare ) ) {
 			$match = call_user_func( $value_compare, $value );
+		} elseif ( is_array( $value_compare ) ) {
+			$match = in_array( $value, $value_compare, true );
 		} elseif ( '__empty' === $value_compare ) {
 			$match = empty( $value );
 		} elseif ( '__not_empty' === $value_compare ) {
@@ -541,23 +543,11 @@ class ET_Builder_Module_Helper_MultiViewOptions {
 	public function get_inherit_value( $name, $selected_mode ) {
 		$values = $this->get_values( $name, false );
 
-		if ( isset( $values[ $selected_mode ] ) && ! is_null( $values[ $selected_mode ] ) ) {
+		if ( isset( $values[ $selected_mode ] ) ) {
 			return $values[ $selected_mode ];
 		}
 
-		if ( ( 'hover' === $selected_mode || 'tablet' === $selected_mode ) && isset( $values['desktop'] ) && ! is_null( $values['desktop'] ) ) {
-			return $values['desktop'];
-		}
-
-		if ( 'phone' === $selected_mode && isset( $values['tablet'] ) && ! is_null( $values['tablet'] ) ) {
-			return $values['tablet'];
-		}
-
-		if ( 'phone' === $selected_mode && isset( $values['desktop'] ) && ! is_null( $values['desktop'] ) ) {
-			return $values['desktop'];
-		}
-
-		return null;
+		return '';
 	}
 
 	/**
@@ -682,13 +672,70 @@ class ET_Builder_Module_Helper_MultiViewOptions {
 			}
 
 			foreach ( $props as $key => $value ) {
-				if ( '' === strval( $value ) ) {
-					continue;
-				}
-
-				$this->props[ $key ] = $value;
+				$this->set_props( $key, $value );
 			}
 		}
+
+		$this->set_inherited_props();
+	}
+
+	/**
+	 * Set props data.
+	 *
+	 * @since 4.0
+	 *
+	 * @param string $name  Props key.
+	 * @param array  $value Props value.
+	 */
+	public function set_props( $name, $value ) {
+		// Always clear cached values to keep the data up to date
+		// in case the props defined in looping
+		$this->clear_cached_values( $name );
+
+		// Set the props data.
+		$this->props[ $name ] = $value;
+	}
+
+	/**
+	 * Clear cached values
+	 *
+	 * @since 4.0
+	 *
+	 * @param string $name Props key.
+	 *
+	 * @return void
+	 */
+	public function clear_cached_values( $name ) {
+		if ( isset( $this->cached_values[ $name ] ) ) {
+			unset( $this->cached_values[ $name ] );
+		}
+	}
+
+	/**
+	 * Set list props that inherited.
+	 *
+	 * @since 4.0.2
+	 */
+	public function set_inherited_props() {
+		if ( ! property_exists( $this->module, 'mv_inherited_props' ) || ! is_array( $this->module->mv_inherited_props ) ) {
+			return;
+		}
+
+		$this->inherited_props = $this->module->mv_inherited_props;
+	}
+
+	/**
+	 * Check if props value suppose to be inherited
+	 *
+	 * @since 4.0.2
+	 *
+	 * @param string $name_by_mode Full name of the props.
+	 * @param string $value Props value.
+	 *
+	 * @return boolean
+	 */
+	public function is_props_inherited( $name_by_mode, $value ) {
+		return isset( $this->inherited_props[ $name_by_mode ] ) && '' === $value;
 	}
 
 	/**
@@ -789,6 +836,11 @@ class ET_Builder_Module_Helper_MultiViewOptions {
 	 * @param array  $values The values to inject.
 	 */
 	public function set_custom_prop( $name, $values ) {
+		// Always clear cached values to keep the data up to date
+		// in case the props defined in looping
+		$this->clear_cached_values( $name );
+
+		// Set the custom props data.
 		$this->custom_props[ $name ] = $this->normalize_values( $values );
 	}
 
@@ -952,7 +1004,6 @@ class ET_Builder_Module_Helper_MultiViewOptions {
 			'hover_selector'     => '',
 			'render_slug'        => '',
 			'custom_props'       => array(),
-			'conditional_values' => array(),
 			'required'           => array(),
 		);
 
@@ -964,12 +1015,6 @@ class ET_Builder_Module_Helper_MultiViewOptions {
 			$this->set_custom_props( $contexts['custom_props'] );
 		}
 		unset( $contexts['custom_props'] );
-
-		// Set conditional values data.
-		if ( $contexts['conditional_values'] && is_array( $contexts['conditional_values'] ) ) {
-			$this->set_conditional_values( $contexts['conditional_values'] );
-		}
-		unset( $contexts['conditional_values'] );
 
 		// Validate element tag.
 		$tag = et_core_sanitize_element_tag( $contexts['tag'] );
@@ -998,11 +1043,6 @@ class ET_Builder_Module_Helper_MultiViewOptions {
 
 		// Generate desktop attribute.
 		foreach ( et_()->array_get( $data, 'attrs.desktop', array() ) as $attr_key => $attr_value ) {
-			$skip = is_string( $attr_value ) || is_numeric( $attr_value ) ? ! strlen( $attr_value ) : empty( $attr_value );
-
-			if ( $skip ) {
-				continue;
-			}
 
 			if ( 'style' === $attr_key ) {
 				foreach ( explode( ';', $attr_value ) as $inline_style ) {
@@ -1023,6 +1063,15 @@ class ET_Builder_Module_Helper_MultiViewOptions {
 			} else {
 				if ( ! is_string( $attr_value ) ) {
 					$attr_value = esc_attr( wp_json_encode( $attr_value ) );
+				}
+
+				/**
+				 * Hide image tag instead showing broken image tag output
+				 * This is needed because there is a case image
+				 * just displayed on non desktop mode only.
+				 */
+				if ( 'src' === $attr_key && ! $attr_value ) {
+					$desktop_classes[] = 'et_multi_view_hidden_image';
 				}
 
 				$desktop_attrs .= ' ' . esc_attr( $attr_key ) . '="' . et_core_esc_previously( $attr_value ) . '"';
@@ -1158,14 +1207,14 @@ class ET_Builder_Module_Helper_MultiViewOptions {
 	 *                                               Set to false to diable conditional check.
 	 * }
 	 * @param bool  $echo Whether to print the output instead returning it.
-	 * @param array $data Pre populated data in case just need to format the attributes output.
+	 * @param array $populated_data Pre populated data in case just need to format the attributes output.
 	 * @param bool  $as_array Whether to return the output as array or string.
 	 *
 	 * @return string|void
 	 *
 	 * @since 3.27.1
 	 */
-	public function render_attrs( $contexts = array(), $echo = false, $data = null, $as_array = false ) {
+	public function render_attrs( $contexts = array(), $echo = false, $populated_data = null, $as_array = false ) {
 		// Define the array of defaults.
 		$defaults = array(
 			'content'            => '',
@@ -1177,7 +1226,6 @@ class ET_Builder_Module_Helper_MultiViewOptions {
 			'hover_selector'     => '',
 			'render_slug'        => '',
 			'custom_props'       => array(),
-			'conditional_values' => array(),
 		);
 
 		// Parse incoming $args into an array and merge it with $defaults.
@@ -1189,19 +1237,17 @@ class ET_Builder_Module_Helper_MultiViewOptions {
 
 		unset( $contexts['custom_props'] );
 
-		if ( $contexts['conditional_values'] && is_array( $contexts['conditional_values'] ) ) {
-			$this->set_conditional_values( $contexts['conditional_values'] );
-		}
-
-		unset( $contexts['conditional_values'] );
-
-		if ( is_null( $data ) ) {
-			$data = $this->populate_data( $contexts );
-		}
+		$data = is_null( $populated_data ) ? $this->populate_data( $contexts ) : $populated_data;
 
 		if ( $data ) {
 			foreach ( $data as $context => $modes ) {
-				if ( count( $modes ) === 1 ) {
+				// Distinct the values to omit duplicate values across modes.
+				$data[ $context ] = $this->distinct_values( $modes );
+
+				// Remove context data if there is only desktop mode data available.
+				// This intended to avoid unnecessary multi view attribute rendered if there is only desktop
+				// mode data is available.
+				if ( 1 === count( $data[ $context ] ) && isset( $data[ $context ]['desktop'] ) ) {
 					unset( $data[ $context ] );
 				}
 			}
@@ -1620,20 +1666,18 @@ class ET_Builder_Module_Helper_MultiViewOptions {
 
 		$data = array();
 
-		foreach ( $classes as $class_name => $conditionals ) {
-			$results = array();
+		foreach ( self::get_modes() as $mode ) {
+			foreach ( $classes as $class_name => $conditionals ) {
+				$class_name = et_core_esc_attr( 'class', $class_name );
 
-			foreach ( $conditionals as $name => $value_compare ) {
-				$values = $this->get_values( $name );
-
-				if ( ! $values ) {
+				if ( is_wp_error( $class_name ) ) {
 					continue;
 				}
 
-				foreach ( $values as $mode => $value ) {
-					if ( isset( $results[ $mode ][ $class_name ] ) && 'remove' === $results[ $mode ][ $class_name ] ) {
-						continue;
-					}
+				$conditionals_match = array();
+
+				foreach ( $conditionals as $name => $value_compare ) {
+					$value = $this->get_inherit_value( $name, $mode );
 
 					// Manipulate the value if needed.
 					$value = $this->filter_value(
@@ -1646,32 +1690,17 @@ class ET_Builder_Module_Helper_MultiViewOptions {
 					);
 
 					if ( ! is_wp_error( $value ) ) {
-						$value = et_core_esc_attr( 'class', $value );
-					}
-
-					if ( ! is_wp_error( $value ) ) {
-						if ( is_array( $value_compare ) ) {
-							$match = in_array( $value, $value_compare, true );
-						} elseif ( is_callable( $value_compare ) ) {
-							$match = call_user_func( $value_compare, $value );
-						} elseif ( '__empty' === $value_compare ) {
-							$match = empty( $value );
-						} elseif ( '__not_empty' === $value_compare ) {
-							$match = ! empty( $value );
-						} else {
-							$match = strval( $value_compare ) === strval( $value );
-						}
-
-						$results[ $mode ][ $class_name ] = $match ? 'add' : 'remove';
+						$conditionals_match[ $name ] = self::compare_value( $value, $value_compare ) ? 1 : 0;
 					}
 				}
-			}
 
-			// Update the multi content data.
-			foreach ( $results as $mode => $classes ) {
-				foreach ( $classes as $class_name => $action ) {
-					$data[ $mode ][ $action ][] = $class_name;
+				$action = count( $conditionals ) === array_sum( $conditionals_match ) ? 'add' : 'remove';
+
+				if ( ! isset( $data[ $mode ][ $action ] ) ) {
+					$data[ $mode ][ $action ] = array();
 				}
+
+				$data[ $mode ][ $action ][] = $class_name;
 			}
 		}
 
@@ -1722,7 +1751,7 @@ class ET_Builder_Module_Helper_MultiViewOptions {
 			$data[ $mode ] = count( $value ) === array_sum( $value );
 		}
 
-		return $this->distinct_values( $data );
+		return $data;
 	}
 
 	/**
@@ -1783,43 +1812,28 @@ class ET_Builder_Module_Helper_MultiViewOptions {
 			'footer_content',
 		);
 
-		if ( $name ) {
-			// Get conditional value.
-			$conditional_value = $this->get_conditional_value( $name, $mode, $args );
+		if ( $raw_value && 'content' === $context && 'desktop' !== $mode && in_array( $name, $content_fields, true ) ) {
+			$raw_value = str_replace( array( '%22', '%92', '%91', '%93' ), array( '"', '\\', '&#91;', '&#93;' ), $raw_value );
 
-			if ( ! is_null( $conditional_value ) ) {
-				$raw_value = $conditional_value;
-			}
+			// Cleaning up invalid starting <\p> tag.
+			$cleaned_value = preg_replace( '/(^<\/p>)(.*)/ius', '$2', $raw_value );
 
-			if ( $raw_value && 'content' === $context && 'desktop' !== $mode && in_array( $name, $content_fields, true ) ) {
-				$raw_value = str_replace( array( '%22', '%92', '%91', '%93' ), array( '"', '\\', '&#91;', '&#93;' ), $raw_value );
+			// Cleaning up invalid ending <p> tag.
+			$cleaned_value = preg_replace( '/(.*)(<p>$)/ius', '$1', $cleaned_value );
 
-				// Cleaning up invalid starting <\p> tag.
-				$cleaned_value = preg_replace( '/(^<\/p>)(.*)/ius', '$2', $raw_value );
+			// Override the raw value.
+			if ( $raw_value !== $cleaned_value ) {
+				$raw_value = trim( $cleaned_value, "\n" );
 
-				// Cleaning up invalid ending <p> tag.
-				$cleaned_value = preg_replace( '/(.*)(<p>$)/ius', '$1', $cleaned_value );
-
-				// Override the raw value.
-				if ( $raw_value !== $cleaned_value ) {
-					$raw_value = trim( $cleaned_value, "\n" );
-
-					if ( 'raw_content' !== $name ) {
-						$raw_value = force_balance_tags( $raw_value );
-					}
-				}
-
-				// Try to process shortcode.
-				if ( false !== strpos( $raw_value, '&#91;' ) && false !== strpos( $raw_value, '&#93;' ) ) {
-					$raw_value = do_shortcode( et_pb_fix_shortcodes( str_replace( array( '&#91;', '&#93;' ), array( '[', ']' ), $raw_value ), true ) );
+				if ( 'raw_content' !== $name ) {
+					$raw_value = force_balance_tags( $raw_value );
 				}
 			}
-		}
 
-		$skip = is_string( $raw_value ) || is_numeric( $raw_value ) ? ! strlen( $raw_value ) : empty( $raw_value );
-
-		if ( $skip ) {
-			return new WP_Error();
+			// Try to process shortcode.
+			if ( false !== strpos( $raw_value, '&#91;' ) && false !== strpos( $raw_value, '&#93;' ) ) {
+				$raw_value = do_shortcode( et_pb_fix_shortcodes( str_replace( array( '&#91;', '&#93;' ), array( '[', ']' ), $raw_value ), true ) );
+			}
 		}
 
 		return $raw_value;
@@ -1843,26 +1857,18 @@ class ET_Builder_Module_Helper_MultiViewOptions {
 		if ( ! empty( $data['attrs'] ) && et_is_responsive_images_enabled() ) {
 			foreach ( $data['attrs'] as $mode => $attrs ) {
 				// Skip if src attr is empty.
-				if ( empty( $attrs['src'] ) ) {
+				if ( ! isset( $attrs['src'] ) ) {
 					continue;
 				}
 
-				$attachment_srcset_sizes = et_get_image_srcset_sizes( $attrs['src'] );
+				$srcset_sizes = et_get_image_srcset_sizes( $attrs['src'] );
 
-				if ( isset( $attachment_srcset_sizes['srcset'] ) ) {
-					$data['attrs'][ $mode ]['srcset'] = $attachment_srcset_sizes['srcset'];
-				}
-
-				if ( isset( $attachment_srcset_sizes['sizes'] ) ) {
-					$data['attrs'][ $mode ]['sizes'] = $attachment_srcset_sizes['sizes'];
-				}
-
-				if ( ! isset( $data['attrs'][ $mode ]['srcset'] ) ) {
-					$data['attrs'][ $mode ]['srcset'] = '';
-				}
-
-				if ( ! isset( $data['attrs'][ $mode ]['sizes'] ) ) {
-					$data['attrs'][ $mode ]['sizes'] = '';
+				if ( isset( $srcset_sizes['srcset'], $srcset_sizes['sizes'] ) && $srcset_sizes['srcset'] && $srcset_sizes['sizes'] ) {
+					$data['attrs'][ $mode ]['srcset'] = $srcset_sizes['srcset'];
+					$data['attrs'][ $mode ]['sizes']  = $srcset_sizes['sizes'];
+				} else {
+					unset( $data['attrs'][ $mode ]['srcset'] );
+					unset( $data['attrs'][ $mode ]['sizes'] );
 				}
 			}
 		}
@@ -1936,35 +1942,51 @@ class ET_Builder_Module_Helper_MultiViewOptions {
 	 *
 	 * @param array $values Raw values.
 	 *
-	 * @return array Distincted values for all modes.
+	 * @return array Filtered out for mode that has duplicate values.
 	 */
 	public function distinct_values( $values ) {
-		$distincted = array();
+		$temp_values = array();
 
-		// Unset phone mode value if it same with tablet mode value.
-		if ( isset( $values['tablet'] ) && isset( $values['phone'] ) && $values['tablet'] === $values['phone'] ) {
-			unset( $values['phone'] );
+		foreach ( $values as $mode => $value ) {
+			// Stringify the value so can be easily compared.
+			$temp_values[ $mode ] = wp_json_encode( $value );
 		}
 
-		// Unset tablet mode value if it same with desktop mode value.
-		if ( isset( $values['desktop'] ) && isset( $values['tablet'] ) && $values['desktop'] === $values['tablet'] ) {
-			unset( $values['tablet'] );
+		// Unset hover mode if same with desktop mode.
+		if ( isset( $temp_values['desktop'], $temp_values['hover'] ) && $temp_values['desktop'] === $temp_values['hover'] ) {
+			unset( $temp_values['hover'] );
 		}
 
-		// Unset hover mode value if it same with desktop mode value.
-		if ( isset( $values['desktop'] ) && isset( $values['hover'] ) && $values['desktop'] === $values['hover'] ) {
-			unset( $values['hover'] );
+		// Unset tablet mode if same with desktop mode.
+		if ( isset( $temp_values['desktop'], $temp_values['tablet'] ) && $temp_values['desktop'] === $temp_values['tablet'] ) {
+			unset( $temp_values['tablet'] );
 		}
+
+		// Unset phone mode if same with tablet mode.
+		if ( isset( $temp_values['tablet'], $temp_values['phone'] ) && $temp_values['tablet'] === $temp_values['phone'] ) {
+			unset( $temp_values['phone'] );
+		}
+
+		// Unset phone mode if same with desktop mode but no tablet mode defined.
+		if ( isset( $temp_values['desktop'], $temp_values['phone'] ) && ! isset( $temp_values['tablet'] ) && $temp_values['desktop'] === $temp_values['phone'] ) {
+			unset( $temp_values['phone'] );
+		}
+
+		$filtered_values = array();
 
 		foreach ( self::get_modes() as $mode ) {
+			if ( ! isset( $temp_values[ $mode ] ) ) {
+				continue;
+			}
+
 			if ( ! isset( $values[ $mode ] ) ) {
 				continue;
 			}
 
-			$distincted[ $mode ] = $values[ $mode ];
+			$filtered_values[ $mode ] = $values[ $mode ];
 		}
 
-		return $distincted;
+		return $filtered_values;
 	}
 
 	/**

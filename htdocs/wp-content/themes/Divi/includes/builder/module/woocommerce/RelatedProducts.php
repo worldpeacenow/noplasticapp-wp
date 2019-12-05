@@ -7,7 +7,7 @@
  *
  * @package Divi\Builder
  *
- * @since   ??
+ * @since   3.29
  */
 
 /**
@@ -28,6 +28,9 @@ class ET_Builder_Module_Woocommerce_Related_Products extends ET_Builder_Module {
 
 	/**
 	 * Initialize.
+	 *
+	 * @since 4.0.7 Introduced Product title toggle slug to allow Copy/Paste
+	 *           @see   {https://github.com/elegantthemes/Divi/issues/17436}
 	 */
 	public function init() {
 		$this->name   = esc_html__( 'Woo Related Product', 'et_builder' );
@@ -47,10 +50,10 @@ class ET_Builder_Module_Woocommerce_Related_Products extends ET_Builder_Module {
 			),
 			'advanced' => array(
 				'toggles' => array(
-					'overlay' => esc_html__( 'Overlay', 'et_builder' ),
-					'image'   => esc_html__( 'Image', 'et_builder' ),
+					'overlay'       => esc_html__( 'Overlay', 'et_builder' ),
+					'image'         => esc_html__( 'Image', 'et_builder' ),
 					// Avoid Text suffix by manually defining the `star` toggle slug.
-					'star'    => esc_html__( 'Star Rating', 'et_builder' ),
+					'star'          => esc_html__( 'Star Rating', 'et_builder' ),
 				),
 			),
 		);
@@ -84,6 +87,15 @@ class ET_Builder_Module_Woocommerce_Related_Products extends ET_Builder_Module {
 					'hide_line_height'   => true,
 					'hide_text_shadow'   => true,
 					'use_original_label' => true,
+					'text_align'         => array(
+						'label' => esc_html__( 'Star Rating Alignment', 'et_builder' ),
+					),
+					'font_size'          => array(
+						'label' => esc_html__( 'Star Rating Size', 'et_builder' ),
+					),
+					'text_color'         => array(
+						'label' => esc_html__( 'Star Rating Color', 'et_builder' ),
+					),
 					'toggle_slug'        => 'star',
 				),
 				'product_title' => array(
@@ -167,8 +179,8 @@ class ET_Builder_Module_Woocommerce_Related_Products extends ET_Builder_Module {
 				'image'   => array(
 					'css'          => array(
 						'main' => array(
-							'border_radii'  => '%%order_class%%.et_pb_module.et_pb_with_border .et_shop_image > img, %%order_class%%.et_pb_module.et_pb_with_border .et_shop_image',
-							'border_styles' => '%%order_class%%.et_pb_module.et_pb_with_border .et_shop_image > img',
+							'border_radii'  => '%%order_class%%.et_pb_module .et_shop_image',
+							'border_styles' => '%%order_class%%.et_pb_module .et_shop_image',
 						),
 						'important' => 'all',
 					),
@@ -287,12 +299,11 @@ class ET_Builder_Module_Woocommerce_Related_Products extends ET_Builder_Module {
 	 * {@inheritdoc}
 	 */
 	public function get_fields() {
-		$post_id = $this->get_the_ID();
 		$fields  = array(
 			'product'             => ET_Builder_Module_Helper_Woocommerce_Modules::get_field(
 				'product',
 				array(
-					'default'          => 'product' === $this->get_post_type() ? 'current' : 'latest',
+					'default'          => ET_Builder_Module_Helper_Woocommerce_Modules::get_product_default(),
 					'computed_affects' => array(
 						'__related_products',
 					),
@@ -309,7 +320,7 @@ class ET_Builder_Module_Woocommerce_Related_Products extends ET_Builder_Module {
 			'posts_number'        => ET_Builder_Module_Helper_Woocommerce_Modules::get_field(
 				'posts_number',
 				array(
-					'default'          => ET_Builder_Module_Helper_Woocommerce_Modules::get_columns_posts_default_number_by_post_id( $post_id ),
+					'default'          => ET_Builder_Module_Helper_Woocommerce_Modules::get_columns_posts_default(),
 					'computed_affects' => array(
 						'__related_products',
 					),
@@ -318,7 +329,7 @@ class ET_Builder_Module_Woocommerce_Related_Products extends ET_Builder_Module {
 			'columns_number'      => ET_Builder_Module_Helper_Woocommerce_Modules::get_field(
 				'columns_number',
 				array(
-					'default'          => ET_Builder_Module_Helper_Woocommerce_Modules::get_columns_posts_default_number_by_post_id( $post_id ),
+					'default'          => ET_Builder_Module_Helper_Woocommerce_Modules::get_columns_posts_default(),
 					'computed_affects' => array(
 						'__related_products',
 					),
@@ -498,6 +509,15 @@ class ET_Builder_Module_Woocommerce_Related_Products extends ET_Builder_Module {
 			''
 		);
 
+		// Set default values when parameters are empty.
+		$default = ET_Builder_Module_Helper_Woocommerce_Modules::get_columns_posts_default_value();
+		if ( empty( $selected_args['posts_per_page'] ) ) {
+			$selected_args['posts_per_page'] = $default;
+		}
+		if ( empty( $selected_args['columns'] ) ) {
+			$selected_args['columns'] = $default;
+		}
+
 		$selected_args = array_filter( $selected_args, 'strlen' );
 
 		if ( isset( $selected_args['orderby'] ) ) {
@@ -563,12 +583,12 @@ class ET_Builder_Module_Woocommerce_Related_Products extends ET_Builder_Module {
 		}
 
 		// Icon Hover Color.
-		et_pb_responsive_options()->generate_responsive_css( $icon_hover_color_values, '%%order_class%% .et_overlay:before', 'color', $render_slug, ' !important;', 'color' );
+		et_pb_responsive_options()->generate_responsive_css( $icon_hover_color_values, '%%order_class%% .et_overlay:before, %%order_class%% .et_pb_extra_overlay:before', 'color', $render_slug, ' !important;', 'color' );
 
 		// Hover Overlay Color.
 		et_pb_responsive_options()->generate_responsive_css(
 			$hover_overlay_color_value,
-			'%%order_class%% .et_overlay',
+			'%%order_class%% .et_overlay, %%order_class%% .et_pb_extra_overlay',
 			array(
 				'background-color',
 				'border-color',

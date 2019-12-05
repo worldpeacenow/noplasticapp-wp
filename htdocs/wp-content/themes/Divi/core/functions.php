@@ -352,7 +352,11 @@ endif;
 
 if ( ! function_exists( 'et_core_is_fb_enabled' ) ):
 function et_core_is_fb_enabled() {
-	return function_exists( 'et_fb_is_enabled' ) && et_fb_is_enabled();
+	if ( function_exists( 'et_fb_is_enabled' ) ) {
+		return et_fb_is_enabled();
+	}
+
+	return isset( $_GET['et_fb'] ) && current_user_can( 'edit-posts' );
 }
 endif;
 
@@ -789,6 +793,7 @@ function et_new_core_setup() {
 
 	require_once ET_CORE_PATH . 'components/Updates.php';
 	require_once ET_CORE_PATH . 'components/init.php';
+	require_once ET_CORE_PATH . 'php_functions.php';
 	require_once ET_CORE_PATH . 'wp_functions.php';
 
 	if ( $has_php_52x ) {
@@ -952,10 +957,23 @@ endif;
  *
  * @return bool  True - if the plugin is active
  */
-if ( ! function_exists( 'et_is_woocommerce_plugin_active' ) ) :
-	function et_is_woocommerce_plugin_active() {
-		return class_exists( 'WooCommerce' );
-	}
+if ( ! function_exists( 'et_is_woocommerce_plugin_active' ) ):
+function et_is_woocommerce_plugin_active() {
+	return class_exists( 'WooCommerce' );
+}
+endif;
+
+if ( ! function_exists( 'et_is_product_taxonomy' ) ):
+/**
+ * Wraps {@see is_product_taxonomy()} to check for its existence before calling.
+ *
+ * @since 4.0
+ *
+ * @return bool
+ */
+function et_is_product_taxonomy() {
+	return function_exists( 'is_product_taxonomy' ) && is_product_taxonomy();
+}
 endif;
 
 
@@ -1253,9 +1271,16 @@ function et_get_image_srcset_sizes( $img_src ) {
 		return false;
 	}
 
+	$srcset = wp_get_attachment_image_srcset( $attachment_id, $image_size );
+	$sizes  = wp_get_attachment_image_sizes( $attachment_id, $image_size );
+
+	if ( ! $srcset || ! $sizes ) {
+		return false;
+	}
+
 	$data = array(
-		'srcset' => wp_get_attachment_image_srcset( $attachment_id, $image_size ),
-		'sizes'  => wp_get_attachment_image_sizes( $attachment_id, $image_size ),
+		'srcset' => $srcset,
+		'sizes'  => $sizes,
 	);
 
 	$cache[ $cache_key ] = $data;
@@ -1384,3 +1409,21 @@ function et_core_enqueue_js_admin() {
 	}
 }
 endif;
+
+/**
+ * Get ET account information.
+ *
+ * @since 4.0
+ *
+ * @return array
+ */
+function et_core_get_et_account() {
+	$utils           = ET_Core_Data_Utils::instance();
+	$updates_options = get_site_option( 'et_automatic_updates_options', array() );
+
+	return array(
+		'et_username' => $utils->array_get( $updates_options, 'username', '' ),
+		'et_api_key'  => $utils->array_get( $updates_options, 'api_key', '' ),
+		'status'      => get_site_option( 'et_account_status', 'not_active' ),
+	);
+}

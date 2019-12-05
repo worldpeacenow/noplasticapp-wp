@@ -1263,7 +1263,7 @@ class ET_Core_SupportCenter {
 				'environment'    => 'server',
 				'type'           => 'size',
 				'pass_minus_one' => false,
-				'pass_zero'      => false,
+				'pass_zero'      => true,
 				'minimum'        => null,
 				'recommended'    => '64M',
 				'actual'         => ini_get( 'upload_max_filesize' ),
@@ -1812,6 +1812,7 @@ class ET_Core_SupportCenter {
 			'read_dynamic_content_custom_fields' => true,
 			'save_library'                       => true,
 			'use_visual_builder'                 => true,
+			'theme_builder'                      => true,
 			// WooCommerce Capabilities
 			'manage_woocommerce'                 => true,
 		);

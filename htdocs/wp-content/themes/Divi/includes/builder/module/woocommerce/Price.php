@@ -7,13 +7,11 @@
  *
  * @package Divi\Builder
  *
- * @since   ??
+ * @since   3.29
  */
 
 /**
  * Class representing WooCommerce Price component.
- *
- * @since 3.29
  */
 class ET_Builder_Module_Woocommerce_Price extends ET_Builder_Module {
 	/**
@@ -153,6 +151,8 @@ class ET_Builder_Module_Woocommerce_Price extends ET_Builder_Module {
 				'name' => esc_html__( 'Divi WooCommerce Modules', 'et_builder' ),
 			),
 		);
+
+		add_filter( 'woocommerce_variation_prices', array( 'ET_Builder_Module_Woocommerce_Price', 'theme_builder_placeholder' ), 10, 3 );
 	}
 
 	/**
@@ -163,7 +163,7 @@ class ET_Builder_Module_Woocommerce_Price extends ET_Builder_Module {
 			'product'        => ET_Builder_Module_Helper_Woocommerce_Modules::get_field(
 				'product',
 				array(
-					'default'          => 'product' === $this->get_post_type() ? 'current' : 'latest',
+					'default'          => ET_Builder_Module_Helper_Woocommerce_Modules::get_product_default(),
 					'computed_affects' => array(
 						'__price',
 					),
@@ -209,6 +209,24 @@ class ET_Builder_Module_Woocommerce_Price extends ET_Builder_Module {
 	 */
 	public static function get_price( $args = array(), $conditional_tags = array(), $current_page = array() ) {
 		return et_builder_wc_render_module_template( 'woocommerce_template_single_price', $args );
+	}
+
+	/**
+	 * Modify cached price for theme builder placeholder. Theme builder generates faux variable
+	 * product data on the fly; since no actual product data is saved and variable needs children
+	 * product to estimate min - max value, filtering cached price output is more efficient
+	 *
+	 * @since 4.0.1
+	 *
+	 * @return array
+	 */
+	public static function theme_builder_placeholder( $cached_price, $product, $for_display ) {
+		if ( et_builder_tb_enabled() ) {
+			// Variable product assumes there are multiple children product, hence the array
+			$cached_price['price'] = array( 89 );
+		}
+
+		return $cached_price;
 	}
 
 	/**

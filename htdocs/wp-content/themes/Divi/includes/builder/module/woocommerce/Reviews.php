@@ -7,7 +7,7 @@
  *
  * @package Divi\Builder
  *
- * @since   ??
+ * @since   3.29
  */
 
 /**
@@ -165,7 +165,7 @@ class ET_Builder_Module_Woocommerce_Reviews extends ET_Builder_Module_Comments {
 				'computed_affects' => array(
 					'__reviews',
 				),
-				'default'          => 'product' === $this->get_post_type() ? 'current' : 'latest',
+				'default'          => ET_Builder_Module_Helper_Woocommerce_Modules::get_product_default(),
 			)
 		);
 		$fields['product_filter'] = ET_Builder_Module_Helper_Woocommerce_Modules::get_field(
@@ -236,7 +236,7 @@ class ET_Builder_Module_Woocommerce_Reviews extends ET_Builder_Module_Comments {
 		$args = wp_parse_args( $args, $defaults );
 
 		// Get correct product ID when current request is computed callback request.
-		if ( ET_Builder_Element::get_current_post_id() ) {
+		if ( ET_Builder_Element::get_current_post_id() && ! et_builder_tb_enabled() ) {
 			$maybe_product_id = ET_Builder_Element::get_current_post_id();
 		}
 
@@ -248,13 +248,27 @@ class ET_Builder_Module_Woocommerce_Reviews extends ET_Builder_Module_Comments {
 			$maybe_product_id = $args['product'];
 		}
 
-		$product = ET_Builder_Module_Helper_Woocommerce_Modules::get_product( $maybe_product_id );
+		$is_tb = et_builder_tb_enabled();
+
+		if ( $is_tb ) {
+			global $product;
+
+			et_theme_builder_wc_set_global_objects();
+		} else {
+			$product = ET_Builder_Module_Helper_Woocommerce_Modules::get_product( $maybe_product_id );
+		}
 
 		if ( ! ( $product instanceof WC_Product ) ) {
 			return '';
 		}
 
-		return self::get_reviews_markup( $product, $args['header_level'], true );
+		$reviews_markup = self::get_reviews_markup( $product, $args['header_level'], true );
+
+		if ( $is_tb ) {
+			et_theme_builder_wc_reset_global_objects();
+		}
+
+		return $reviews_markup;
 	}
 
 	/**
@@ -407,8 +421,7 @@ class ET_Builder_Module_Woocommerce_Reviews extends ET_Builder_Module_Comments {
 	 *
 	 * @since 3.29
 	 */
-	public function after_comments_content() {
-	}
+	public function after_comments_content() { /* intentionally empty*/ }
 
 	/**
 	 * {@inheritdoc}

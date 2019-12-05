@@ -324,7 +324,9 @@ var isBuilder = 'object' === typeof window.ET_Builder;
 			var $target        = $(location_hash);
 
 			// Make the target element visible again
-			$target.css('display', window.et_location_hash_style);
+			if ('undefined' !== typeof window.et_location_hash_style) {
+				$target.css('display', window.et_location_hash_style);
+			}
 
 			var distance = ('undefined' !== typeof($target.offset().top)) ? $target.offset().top : 0;
 			var speed    = (distance > 4000) ? 1600 : 800;
@@ -441,7 +443,7 @@ var isBuilder = 'object' === typeof window.ET_Builder;
 
 			if ($wooCommerceNotice.length > 0 && 'yes' !== $wooCommerceNotice.attr('data-position-set')) {
 				var wooNoticeMargin = main_header_fixed_height;
-				
+
 				if (0 === wooNoticeMargin && $main_header.attr('data-height-onload')) {
 					wooNoticeMargin = $main_header.attr('data-height-onload');
 				}
@@ -682,7 +684,7 @@ var isBuilder = 'object' === typeof window.ET_Builder;
 						// Adding specific class to mark the map as first row section element
 						$et_pb_first_row_first_module.addClass( 'et_beneath_transparent_nav' );
 
-					} else if ( $et_pb_first_row_first_module.is( '.et_pb_fullwidth_menu' ) ) {
+					} else if ( $et_pb_first_row_first_module.is( '.et_pb_menu' ) || $et_pb_first_row_first_module.is( '.et_pb_fullwidth_menu' ) ) {
 
 						/* Desktop / Mobile + Pagebuilder + Fullwidth Menu */
 
@@ -1167,15 +1169,30 @@ var isBuilder = 'object' === typeof window.ET_Builder;
 			}
 		});
 
+		var et_pb_window_side_nav_get_sections = function() {
+			var $inPost   = $('.et-l--post .et_pb_section');
+			var $inTBBody = $('.et-l--body .et_pb_section').not('.et-l--post .et_pb_section');
+
+			if (0 === $inTBBody.length || $inPost.length > 1) {
+				return $inPost;
+			}
+
+			return $inTBBody;
+		};
+
 		window.et_pb_window_side_nav_scroll_init = function() {
 			if ( true === window.et_calculating_scroll_position || false === window.et_side_nav_links_initialized ) {
 				return;
 			}
 
+			var $sections = et_pb_window_side_nav_get_sections();
+
 			window.et_calculating_scroll_position = true;
 
-			var add_offset = $( 'body' ).hasClass( 'et_fixed_nav' ) ? 20 : -90;
-			var top_header_height = $( '#top-header' ).length > 0 ? parseInt( $( '#top-header' ).height() ) : 0;
+			var is_tb_layout_used  = $('.et-l--header').length || $('.et-l--body').length || ! $('#main-header').length;
+			var add_offset_default = is_tb_layout_used ? 0 : -90;
+			var add_offset         = $( 'body' ).hasClass( 'et_fixed_nav' ) ? 20 : add_offset_default;
+			var top_header_height  = $( '#top-header' ).length > 0 ? parseInt( $( '#top-header' ).height() ) : 0;
 			var main_header_height = $( '#main-header' ).length > 0 ? parseInt( $( '#main-header' ).height() ) : 0;
 			var side_offset;
 
@@ -1196,7 +1213,7 @@ var isBuilder = 'object' === typeof window.ET_Builder;
 			var total_links = $( '.side_nav_item a' ).length - 1;
 
 			for ( var link = 0; link <= total_links; link++ ) {
-				var $target_section = $( '.et_pb_section:visible:not(.et_pb_section div)' ).eq( link );
+				var $target_section = $sections.eq(link);
 				var at_top_of_page = 'undefined' === typeof $target_section.offset();
 				var current_active = $( '.side_nav_item a.active' ).parent().index();
 				var next_active = null;
@@ -1220,9 +1237,9 @@ var isBuilder = 'object' === typeof window.ET_Builder;
 		};
 
 		window.et_pb_side_nav_page_init = function() {
-			var $sections = $( '.et_pb_section:visible:not(.et_pb_section div)' );
-			var total_sections = $sections.length;
-			var side_nav_offset = parseInt( ( total_sections * 20 + 40 ) / 2 );
+			var $sections          = et_pb_window_side_nav_get_sections();
+			var total_sections     = $sections.length;
+			var side_nav_offset    = parseInt( ( total_sections * 20 + 40 ) / 2 );
 
 			window.et_side_nav_links_initialized = false;
 
@@ -1248,8 +1265,8 @@ var isBuilder = 'object' === typeof window.ET_Builder;
 					// We use the index position of the sections to locate them instead of custom classes so
 					// that we have the same implementation for the frontend website and the Visual Builder.
 					var index = parseInt( $( this ).text() );
-					var $target = $( '.et_pb_section:visible:not(.et_pb_section div)' ).eq( index );
-					var top_section = $(this).text() == "0";
+					var $target = $sections.eq( index );
+					var top_section = $(this).text() == "0" && ! $('.et-l--body').length;
 
 					et_pb_smooth_scroll( $target, top_section, 800 );
 
@@ -1665,5 +1682,16 @@ var isBuilder = 'object' === typeof window.ET_Builder;
 
 		et_adjust_woocommerce_checkout_scroll();
 	} );
+
+  // Override row selector in VB
+  $et_window.on('et_fb_init', function() {
+    var wp = window.top.wp;
+    if (wp && wp.hooks && wp.hooks.addFilter) {
+      var replacement = window.DIVI.row_selector;
+      wp.hooks.addFilter('et.pb.row.css.selector', 'divi.et.pb.row.css.selector', function(selector) {
+        return selector.replace('%%row_selector%%', replacement);
+      });
+    }
+  })
 
 })(jQuery);

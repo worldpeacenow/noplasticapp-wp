@@ -35,7 +35,7 @@ class ET_Core_Cache_File {
 	 *
 	 * @since 3.27.3
 	 *
-	 * @var bool
+	 * @var array
 	 */
 	protected static $_dirty = array();
 
@@ -67,8 +67,8 @@ class ET_Core_Cache_File {
 		if ( ! isset( self::$_cache_loaded[ $cache_name ] ) ) {
 			$file = self::get_cache_file_name( $cache_name );
 
-			if ( is_readable( $file ) ) {
-				self::$_cache[ $cache_name ] = unserialize( file_get_contents( $file ) );
+			if ( et_()->WPFS()->is_readable( $file ) ) {
+				self::$_cache[ $cache_name ] = unserialize( et_()->WPFS()->get_contents( $file ) );
 			} else {
 				self::$_cache[ $cache_name ] = array();
 			}
@@ -99,11 +99,11 @@ class ET_Core_Cache_File {
 			$data = self::$_cache[ $cache_name ];
 			$file = self::get_cache_file_name( $cache_name );
 
-			if ( ! is_writable( dirname( $file ) ) ) {
+			if ( ! wp_is_writable( dirname( $file ) ) ) {
 				continue;
 			}
 
-			file_put_contents( $file, serialize( $data ) );
+			et_()->WPFS()->put_contents( $file, serialize( $data ) );
 		}
 	}
 

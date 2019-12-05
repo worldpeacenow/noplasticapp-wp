@@ -144,6 +144,8 @@
 				et_set_wp_editor_content(content);
 			}
 
+			$('body').append('<div class="et-bfb-page-preloading"></div>');
+
 			// Update Post meta directly via ajax request if post has no title or content.
 			// Because in this case clicking `Save` button won't update the post meta.
 			if ('' === content && '' === post_title) {
@@ -155,11 +157,15 @@
 						action : 'et_builder_activate_bfb_auto_draft',
 						et_enable_bfb_nonce : et_bfb_options.et_enable_bfb_nonce,
 						et_post_id : post_id
+					},
+					complete: function() {
+						// Run et_maybe_toggle_bfb after ajax request completed to make sure post is not saved too early.
+						et_maybe_toggle_bfb($save_button);
 					}
 				});
-			}
 
-			$('body').append('<div class="et-bfb-page-preloading"></div>');
+				return;
+			}
 		}
 
 		et_maybe_toggle_bfb($save_button);

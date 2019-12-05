@@ -7,7 +7,7 @@
  *
  * @package Divi\Builder
  *
- * @since   ??
+ * @since   3.29
  */
 
 /**
@@ -129,6 +129,8 @@ class ET_Builder_Module_Woocommerce_Add_To_Cart extends ET_Builder_Module {
 						'main'         => '%%order_class%% .button',
 						'limited_main' => '%%order_class%% .button',
 						'alignment'    => '%%order_class%% .et_pb_module_inner > form',
+						// Setting to TRUE since it only checks for the value's existence.
+						'important'    => true,
 					),
 
 					/*
@@ -343,7 +345,7 @@ class ET_Builder_Module_Woocommerce_Add_To_Cart extends ET_Builder_Module {
 			'product'        => ET_Builder_Module_Helper_Woocommerce_Modules::get_field(
 				'product',
 				array(
-					'default'          => 'product' === $this->get_post_type() ? 'current' : 'latest',
+					'default'          => ET_Builder_Module_Helper_Woocommerce_Modules::get_product_default(),
 					'computed_affects' => array(
 						'__add_to_cart',
 					),
@@ -406,8 +408,6 @@ class ET_Builder_Module_Woocommerce_Add_To_Cart extends ET_Builder_Module {
 
 	/**
 	 * Get add to cart markup as string
-	 *
-	 * @since 3.29
 	 *
 	 * @param array $args Additional arguments.
 	 *

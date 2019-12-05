@@ -216,13 +216,13 @@ class ET_Core_Data_Utils {
 	 * Gets a value from a nested array using an address string.
 	 *
 	 * @param array  $array   An array which contains value located at `$address`.
-	 * @param string $address The location of the value within `$array` (dot notation).
+	 * @param string|array $address The location of the value within `$array` (dot notation).
 	 * @param mixed  $default Value to return if not found. Default is an empty string.
 	 *
 	 * @return mixed The value, if found, otherwise $default.
 	 */
 	public function array_get( $array, $address, $default = '' ) {
-		$keys   = explode( '.', $address );
+		$keys   = is_array( $address ) ? $address : explode( '.', $address );
 		$value  = $array;
 
 		foreach ( $keys as $key ) {
@@ -239,6 +239,26 @@ class ET_Core_Data_Utils {
 			}
 
 			$value = $value[ $key ];
+		}
+
+		return $value;
+	}
+
+	/**
+	 * Wrapper for {@see self::array_get()} that sanitizes the value before returning it.
+	 *
+	 * @since 4.0.7
+	 *
+	 * @param array  $array     An array which contains value located at `$address`.
+	 * @param string $address   The location of the value within `$array` (dot notation).
+	 * @param mixed  $default   Value to return if not found. Default is an empty string.
+	 * @param string $sanitizer Sanitize function to use. Default is 'sanitize_text_field'.
+	 *
+	 * @return mixed The sanitized value if found, otherwise $default.
+	 */
+	public function array_get_sanitized( $array, $address, $default = '', $sanitizer = 'sanitize_text_field' ) {
+		if ( $value = $this->array_get( $array, $address, $default ) ) {
+			$value = $sanitizer( $value );
 		}
 
 		return $value;
@@ -309,6 +329,21 @@ class ET_Core_Data_Utils {
 		}
 
 		return $array;
+	}
+
+	/**
+	 * Update a nested array value found at the provided path using {@see array_merge()}.
+	 *
+	 * @since 4.0.7
+	 *
+	 * @param array $array
+	 * @param $path
+	 * @param $value
+	 */
+	public function array_update( &$array, $path, $value ) {
+		$current_value = $this->array_get( $array, $path, array() );
+
+		$this->array_set( $array, $path, array_merge( $current_value, $value ) );
 	}
 
 	public function ensure_directory_exists( $path ) {
@@ -412,6 +447,40 @@ class ET_Core_Data_Utils {
 	}
 
 	/**
+	 * Creates a path string using the provided arguments.
+	 *
+	 * Examples:
+	 *   - ```
+	 *      et_()->path( '/this/is', 'a', 'path' );
+	 *      // Returns '/this/is/a/path'
+	 *     ```
+	 *   - ```
+	 *      et_()->path( ['/this/is', 'a', 'path', 'to', 'file.php'] );
+	 *      // Returns '/this/is/a/path/to/file.php'
+	 *     ```
+	 *
+	 * @since 4.0.6
+	 *
+	 * @param string|string[] ...$parts
+	 *
+	 * @return string
+	 */
+	public function path() {
+		$parts = func_get_args();
+		$path  = '';
+
+		if ( 1 === count( $parts ) && is_array( reset( $parts ) ) ) {
+			$parts = array_pop( $parts );
+		}
+
+		foreach ( $parts as $part ) {
+			$path .= "{$part}/";
+		}
+
+		return substr( $path, 0, -1 );
+	}
+
+	/**
 	 * Process an XML-RPC response string.
 	 *
 	 * @param $response
@@ -453,7 +522,7 @@ class ET_Core_Data_Utils {
 	 *
 	 * @param string $path Absolute path to parent directory.
 	 */
-	function remove_empty_directories( $path ) {
+	public function remove_empty_directories( $path ) {
 		$path = realpath( $path );
 
 		if ( empty( $path ) ) {
@@ -480,12 +549,12 @@ class ET_Core_Data_Utils {
 	/**
 	 * Whether or not a value includes another value.
 	 *
-	 * @param string $haystack The value to look in.
+	 * @param mixed  $haystack The value to look in.
 	 * @param string $needle   The value to look for.
 	 *
 	 * @return bool
 	 */
-	function includes( $haystack, $needle ) {
+	public function includes( $haystack, $needle ) {
 		if ( is_string( $haystack ) ) {
 			return false !== strpos( $haystack, $needle );
 		}
@@ -661,18 +730,67 @@ class ET_Core_Data_Utils {
 			return array( $selector );
 		}
 
-		foreach ( $selectors as $selector ) {
+		foreach ( $selectors as $_selector ) {
 			foreach ( $placeholders as $placeholder ) {
-				if ( strpos( $selector, $placeholder ) !== false ) {
-					$exceptions[] = $selector;
+				if ( strpos( $_selector, $placeholder ) !== false ) {
+					$exceptions[] = $_selector;
 					continue 2;
 				}
 			}
 
-			$main_selector[] = $selector;
+			$main_selector[] = $_selector;
 		}
 
-		return array_merge( array( implode( ', ', $main_selector ) ), $exceptions );
+		return array_filter( array_merge( array( implode( ', ', $main_selector ) ), $exceptions ) );
+	}
+
+	/**
+	 * Whether or not a string starts with a substring.
+	 *
+	 * @since 4.0
+	 *
+	 * @param string $string
+	 * @param string $substring
+	 *
+	 * @return bool
+	 */
+	public function starts_with( $string, $substring ) {
+		return 0 === strpos( $string, $substring );
+	}
+
+	/**
+	 * Convert string to camel case format.
+	 *
+	 * @since 4.0
+	 *
+	 * @param string $string Original string data.
+	 * @param array  $no_strip Additional regex pattern exclusion.
+	 *
+	 * @return string
+	 */
+	public function camel_case( $string, $no_strip = array() ) {
+		$words = preg_split( '/[^a-zA-Z0-9' . implode( '', $no_strip ) . ']+/i', strtolower( $string ) );
+
+		if ( count( $words ) === 1 ) {
+			return $words[0];
+		}
+
+		$camel_cased = implode( '', array_map( 'ucwords', $words ) );
+
+		$camel_cased[0] = strtolower( $camel_cased[0] );
+
+		return $camel_cased;
+	}
+
+	/**
+	 * Returns the WP Filesystem instance.
+	 *
+	 * @since 4.0.6
+	 *
+	 * @return WP_Filesystem_Base {@see ET_Core_PageResource::wpfs()}
+	 */
+	public function WPFS() {
+		return ET_Core_PageResource::wpfs();
 	}
 }
 
